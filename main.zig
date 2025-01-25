@@ -59,6 +59,26 @@ const GlobalEvents = struct {
             .delta_time = 1.0 / 60.0,
         };
     }
+
+    pub fn getEvents(self: *const GlobalEvents, stencil: *const PanelStencil, bounds: *const Bounds) ?Events {
+        const hovering_now = stencil.x < self.mouse_x and self.mouse_x < stencil.x + bounds.width and
+            stencil.y < self.mouse_y and self.mouse_y < stencil.y + bounds.height;
+
+        if (!hovering_now) return null;
+
+        const hovering_before = stencil.x < self.last_mouse_x and self.last_mouse_x < stencil.x + bounds.width and
+            stencil.y < self.last_mouse_y and self.last_mouse_y < stencil.y + bounds.height;
+
+        return Events{
+            .flags = EventFlags{
+                .hover_enter = !hovering_before and hovering_now,
+                .hover_exit = hovering_before and !hovering_now,
+                .mouse_over = hovering_now,
+                ._padding = 0,
+            },
+            .global = self,
+        };
+    }
 };
 
 const GlobalEventFlags = packed struct {
@@ -204,22 +224,34 @@ const SDL2Backend = struct {
     }
 };
 
-const TestGUIHandles = struct { main_panel: u32, hello_button: u32, hello2_button: u32 };
+const MeaninglessText = struct {
+    text: []const u8,
+    more_text: ?[]const u8,
+};
+
+const TestGUIHandles = struct {
+    hello_button: MeaninglessText,
+    hello_button2: MeaninglessText,
+    main_panel: u32,
+};
 
 const App = struct {
     sdl2_backend: SDL2Backend,
     debug_ui: UI,
+    events: GlobalEvents,
+
+    test_gui_handles: TestGUIHandles,
+
     buffer: [UI.getAllocationSize()]u8,
     fba: std.heap.FixedBufferAllocator,
     allocator: std.mem.Allocator,
-    test_gui_handles: TestGUIHandles,
-    events: GlobalEvents,
 
     pub fn render_ui(self: *App) !void {
-        var main_panel_renderer = self.debug_ui.panels[self.test_gui_handles.main_panel].getRenderer();
-        main_panel_renderer.renderPanel(&self.debug_ui);
-        main_panel_renderer.renderElement(&self.debug_ui, &self.events, self.test_gui_handles.hello2_button);
-        main_panel_renderer.renderElement(&self.debug_ui, &self.events, self.test_gui_handles.hello_button);
+        self.debug_ui.renderPanels();
+        var stencil_creator = self.debug_ui.panels[self.test_gui_handles.main_panel].getStencilCreator();
+
+        Button.create(&self.debug_ui, &stencil_creator, &self.events, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text);
+        Button.create(&self.debug_ui, &stencil_creator, &self.events, self.test_gui_handles.hello_button2.text, self.test_gui_handles.hello_button2.more_text);
     }
 
     pub fn create() !App {
@@ -229,14 +261,22 @@ const App = struct {
         app.fba = std.heap.FixedBufferAllocator.init(&app.buffer);
         app.allocator = app.fba.allocator();
 
+        app.events = GlobalEvents.create();
+
         app.debug_ui = try UI.init(app.allocator);
         app.sdl2_backend = try SDL2Backend.create();
 
-        app.test_gui_handles.hello_button = app.debug_ui.addElement(&Button.create("Hello, World!", "This is the world!"));
-        app.test_gui_handles.hello2_button = app.debug_ui.addElement(&Button.create("Hello, World!", "This is the world!"));
-        app.test_gui_handles.main_panel = app.debug_ui.addPanel(&Panel.create(20, 20, 300, 600));
+        app.test_gui_handles.hello_button = MeaninglessText{
+            .text = "Hello, World!",
+            .more_text = "This is the world!",
+        };
 
-        app.events = GlobalEvents.create();
+        app.test_gui_handles.hello_button2 = MeaninglessText{
+            .text = "Hello, World!",
+            .more_text = "This is the world!",
+        };
+
+        app.test_gui_handles.main_panel = app.debug_ui.addPanel(&Panel.create(20, 20, 300, 600));
 
         return app;
     }
@@ -261,20 +301,57 @@ const App = struct {
 };
 
 const Button = struct {
-    text: []const u8,
-    tooltip: ?[]const u8,
     hover_duration: f32,
 
     const PADDING = 20;
 
-    pub fn render(self: *Button, x: f32, y: f32, width: f32, events: Events, primatives: *Primatives) void {
-        const base = Rectangle{
-            .x = x,
-            .y = y,
-            .width = width,
+    pub fn create(ui: *UI, stencil_creator: *PanelStencilCreator, global_events: *const GlobalEvents, text: []const u8, _: ?[]const u8) void {
+        const bounds = Bounds{
+            .width = stencil_creator.panel.width,
             .height = 24.0 + PADDING * 2,
-            .color = if (events.global.flags.mouse_held and events.flags.mouse_over) Color.gray(122) else Color.gray(100),
         };
+
+        const stencil = stencil_creator.getStencil(&bounds);
+
+        const text_line = TextLine{
+            .x = PADDING,
+            .y = PADDING,
+            .width = bounds.width,
+            .text = text,
+            .font_height = 24.0,
+            .color = Color.white(),
+        };
+
+        const base = Rectangle{
+            .x = stencil.x,
+            .y = stencil.y,
+            .width = bounds.width,
+            .height = 24.0 + PADDING * 2,
+            .color = Color.gray(100),
+        };
+
+        ui.primatives.addRectangles(&[_]Rectangle{base});
+        ui.primatives.addTexts(&[_]TextLine{text_line});
+
+        const events = global_events.getEvents(&stencil, &bounds) orelse return;
+
+        if (events.flags.hover_enter) {
+            ui.active_element.button = Button{
+                .hover_duration = 0,
+            };
+        }
+
+        const hover = Rectangle{
+            .x = stencil.x,
+            .y = stencil.y,
+            .width = bounds.width,
+            .height = 24.0 + PADDING * 2,
+            .color = Color.gray(122),
+        };
+
+        if (events.global.flags.mouse_held and events.flags.mouse_over) {
+            ui.primatives.addRectangles(&[_]Rectangle{hover});
+        }
 
         const tooltip_base = Rectangle{
             .x = events.global.mouse_x,
@@ -284,43 +361,16 @@ const Button = struct {
             .color = Color.gray(122),
         };
 
-        const text = TextLine{
-            .x = PADDING,
-            .y = PADDING,
-            .width = width,
-            .text = self.text,
-            .font_height = 24.0,
-            .color = Color.white(),
-        };
-
         if (events.flags.mouse_over) {
-            self.hover_duration += events.global.delta_time;
+            ui.active_element.button.hover_duration += events.global.delta_time;
         } else {
-            self.hover_duration = 0;
+            ui.active_element.button.hover_duration = 0;
         }
 
-        primatives.addRectangle(base);
-        primatives.addText(text);
-
-        if (self.hover_duration > 1.0) {
-            self.hover_duration = @min(self.hover_duration, 15.0);
-            primatives.addRectangle(tooltip_base);
+        if (ui.active_element.button.hover_duration > 1.0) {
+            ui.active_element.button.hover_duration = @min(ui.active_element.button.hover_duration, 15.0);
+            ui.primatives.addRectangles(&[_]Rectangle{tooltip_base});
         }
-    }
-
-    pub fn getBounds(_: *const Button, width: f32) Bounds {
-        return Bounds{
-            .width = width,
-            .height = 24.0 + PADDING * 2,
-        };
-    }
-
-    pub fn create(text: []const u8, tooltip: ?[]const u8) Element {
-        return Element{ .button = Button{
-            .text = text,
-            .hover_duration = 0,
-            .tooltip = tooltip,
-        } };
     }
 };
 
@@ -360,28 +410,28 @@ const TextLine = struct {
     text: []const u8,
 };
 
-const Primatives = struct {
+const PrimativesManager = struct {
     rectangles: []Rectangle,
-    rectangle_count: u32,
+    rectangle_count: usize,
     text: []TextLine,
-    text_count: u32,
+    text_count: usize,
 
-    pub inline fn clear(self: *Primatives) void {
+    pub inline fn clear(self: *PrimativesManager) void {
         self.rectangle_count = 0;
         self.text_count = 0;
     }
 
-    pub inline fn addRectangle(self: *Primatives, rectangle: Rectangle) void {
-        self.rectangles[self.rectangle_count] = rectangle;
-        self.rectangle_count += 1;
+    pub inline fn addRectangles(self: *PrimativesManager, rectangles: []const Rectangle) void {
+        @memcpy(self.rectangles[self.rectangle_count .. self.rectangle_count + rectangles.len], rectangles);
+        self.rectangle_count += rectangles.len;
     }
 
-    pub inline fn addText(self: *Primatives, text: TextLine) void {
-        self.text[self.text_count] = text;
-        self.text_count += 1;
+    pub inline fn addTexts(self: *PrimativesManager, texts: []const TextLine) void {
+        @memcpy(self.text[self.text_count .. self.text_count + texts.len], texts);
+        self.text_count += texts.len;
     }
 
-    pub fn log(self: *const Primatives) void {
+    pub fn log(self: *const PrimativesManager) void {
         var i: usize = 0;
         while (i < self.text_count) {
             std.debug.print("{any}\n", .{self.text[i]});
@@ -396,51 +446,32 @@ const Primatives = struct {
     }
 };
 
-const Element = union(enum) {
-    button: Button,
-
-    pub inline fn render(self: *Element, offset_x: f32, offset_y: f32, panel_width: f32, events: Events, primatives: *Primatives) void {
-        switch (self.*) {
-            Element.button => |*button| button.render(offset_x, offset_y, panel_width, events, primatives),
-        }
-    }
-
-    pub inline fn getBounds(self: *const Element, width: f32) Bounds {
-        return switch (self.*) {
-            Element.button => |button| button.getBounds(width),
-        };
-    }
-};
+const Element = union(enum) { button: Button };
 
 const UI = struct {
     panels: []Panel,
-    elements: []Element,
     panel_count: u32,
-    element_count: u32,
-    primatives: Primatives,
+    active_element: Element,
+    primatives: PrimativesManager,
 
-    const MAX_ELEMENTS = 4096;
     const MAX_PANELS = 64;
     const MAX_RECTANGLES = 1024;
     const MAX_TEXT_LINES = 1024;
 
     pub inline fn getAllocationSize() u32 {
-        return @sizeOf(Panel) * MAX_PANELS + @sizeOf(Element) * MAX_ELEMENTS + @sizeOf(Rectangle) * MAX_RECTANGLES + @sizeOf(TextLine) * (MAX_TEXT_LINES + 1);
+        return @sizeOf(Panel) * MAX_PANELS + @sizeOf(Rectangle) * MAX_RECTANGLES + @sizeOf(TextLine) * (MAX_TEXT_LINES + 1);
     }
 
     pub fn init(allocator: std.mem.Allocator) !UI {
         const panels = try allocator.alloc(Panel, MAX_PANELS);
-        const elements = try allocator.alloc(Element, MAX_ELEMENTS);
-
         const rectangles = try allocator.alloc(Rectangle, MAX_RECTANGLES);
         const text = try allocator.alloc(TextLine, MAX_TEXT_LINES);
 
         return UI{
             .panels = panels,
-            .elements = elements,
             .panel_count = 0,
-            .element_count = 0,
-            .primatives = Primatives{
+            .active_element = undefined,
+            .primatives = PrimativesManager{
                 .rectangles = rectangles,
                 .rectangle_count = 0,
                 .text = text,
@@ -449,10 +480,16 @@ const UI = struct {
         };
     }
 
-    pub fn addElement(self: *UI, element: *const Element) u32 {
-        self.elements[self.element_count] = element.*;
-        self.element_count += 1;
-        return self.element_count - 1;
+    pub fn renderPanels(self: *UI) void {
+        for (self.panels) |panel| {
+            self.primatives.addRectangles(&[_]Rectangle{Rectangle{
+                .color = Color.gray(50),
+                .x = panel.x,
+                .y = panel.y,
+                .width = panel.width,
+                .height = panel.height,
+            }});
+        }
     }
 
     pub fn addPanel(self: *UI, panel: *const Panel) u32 {
@@ -467,15 +504,18 @@ const Bounds = struct {
     width: f32,
 };
 
-const PanelRenderer = struct {
+const PanelStencil = struct {
+    x: f32,
+    y: f32,
+};
+
+const PanelStencilCreator = struct {
     panel: *const Panel,
     height_used: f32,
     width_used: f32,
     max_height: f32,
 
-    pub fn renderElement(self: *PanelRenderer, ui: *UI, global_events: *const GlobalEvents, element_index: u32) void {
-        var element = &ui.elements[element_index];
-        const bounds = element.getBounds(self.panel.width);
+    pub fn getStencil(self: *PanelStencilCreator, bounds: *const Bounds) PanelStencil {
         var offset_x = self.panel.x;
         var offset_y = self.panel.y;
 
@@ -491,33 +531,7 @@ const PanelRenderer = struct {
             self.width_used = bounds.width;
         }
 
-        const hovering_now = offset_x < global_events.mouse_x and global_events.mouse_x < offset_x + bounds.width and
-            offset_y < global_events.mouse_y and global_events.mouse_y < offset_y + bounds.height;
-
-        const hovering_before = offset_x < global_events.last_mouse_x and global_events.last_mouse_x < offset_x + bounds.width and
-            offset_y < global_events.last_mouse_y and global_events.last_mouse_y < offset_y + bounds.height;
-
-        const events = Events{
-            .flags = EventFlags{
-                .hover_enter = !hovering_before and hovering_now,
-                .hover_exit = hovering_before and !hovering_now,
-                .mouse_over = hovering_now,
-                ._padding = 0,
-            },
-            .global = global_events,
-        };
-
-        element.render(offset_x, offset_y, self.panel.width, events, &ui.primatives);
-    }
-
-    pub fn renderPanel(self: *PanelRenderer, ui: *UI) void {
-        ui.primatives.addRectangle(Rectangle{
-            .color = Color.gray(50),
-            .x = self.panel.x,
-            .y = self.panel.y,
-            .width = self.panel.width,
-            .height = self.panel.height,
-        });
+        return PanelStencil{ .x = offset_x, .y = offset_y };
     }
 };
 
@@ -536,8 +550,8 @@ const Panel = struct {
         };
     }
 
-    pub fn getRenderer(self: *const Panel) PanelRenderer {
-        return PanelRenderer{
+    pub fn getStencilCreator(self: *const Panel) PanelStencilCreator {
+        return PanelStencilCreator{
             .height_used = 0.0,
             .width_used = 0.0,
             .max_height = 0.0,
