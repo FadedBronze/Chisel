@@ -2,8 +2,8 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
-
 const std = @import("std");
+
 const DebugUI = @import("DebugUI.zig");
 const Primatives = @import("Primatives.zig");
 

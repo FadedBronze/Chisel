@@ -1,5 +1,6 @@
-const Primatives = @This();
 const std = @import("std");
+
+const Primatives = @This();
 
 rectangles: [MAX_RECTANGLES]Rectangle,
 rectangle_count: usize,

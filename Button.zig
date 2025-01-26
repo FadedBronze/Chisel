@@ -1,30 +1,30 @@
-const Button = @This();
-const DebugUI = @import("DebugUI.zig");
-
-const PanelStencilCreator = @import("elements.zig").PanelStencilCreator;
-const Panel = @import("elements.zig").Panel;
-const PanelStencil = @import("elements.zig").PanelStencil;
-const ElementBounds = @import("elements.zig").ElementBounds;
-
 const Primatives = @import("Primatives.zig");
+const DebugUI = @import("DebugUI.zig");
+const Bounds = @import("utils.zig").Bounds;
+const Extents = @import("utils.zig").Extents;
+
+const Button = @This();
+
+const PADDING = 8;
 
 hover_duration: f32,
 
-const PADDING = 10;
+pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const u8) void {
+    const button_height = font_backend.getLineHeight(0) * 2 + PADDING * 2;
 
-pub fn create(ui: *DebugUI, font_backend: anytype, stencil_creator: *PanelStencilCreator, text: []const u8, _: ?[]const u8) void {
-    const button_height = font_backend.getLineHeight(0) + PADDING * 2;
+    const max_space = ui.getSpace();
 
-    const bounds = ElementBounds{
-        .width = stencil_creator.panel.width,
-        .height = button_height + Panel.PADDING,
+    const space = Extents{
+        .width = @divTrunc(max_space.width, 2),
+        .height = button_height + 5,
     };
 
-    const stencil = stencil_creator.getStencil(&bounds);
+    var bounds = ui.iterLayout(space);
+    bounds.width -= 5;
 
     const text_block = Primatives.TextBlock{
-        .x = PADDING + stencil.x,
-        .y = PADDING + stencil.y,
+        .x = PADDING + bounds.x,
+        .y = PADDING + bounds.y,
         .width = bounds.width - PADDING * 2,
         .text = text,
         .color = Primatives.Color.white(),
@@ -34,8 +34,8 @@ pub fn create(ui: *DebugUI, font_backend: anytype, stencil_creator: *PanelStenci
     };
 
     const base = Primatives.Rectangle{
-        .x = stencil.x,
-        .y = stencil.y,
+        .x = bounds.x,
+        .y = bounds.y,
         .width = bounds.width,
         .height = button_height,
         .color = Primatives.Color.gray(100),
@@ -44,7 +44,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, stencil_creator: *PanelStenci
     ui.primatives.addRectangle(base);
     ui.primatives.addText(text_block);
 
-    const local_events = stencil.getEvents(ui, &bounds) orelse return;
+    const local_events = ui.getEvents(&bounds) orelse return;
 
     if (local_events.hover_enter) {
         ui.active_element.button = Button{
@@ -53,8 +53,8 @@ pub fn create(ui: *DebugUI, font_backend: anytype, stencil_creator: *PanelStenci
     }
 
     const hover = Primatives.Rectangle{
-        .x = stencil.x,
-        .y = stencil.y,
+        .x = bounds.x,
+        .y = bounds.y,
         .width = bounds.width,
         .height = button_height,
         .color = Primatives.Color.gray(122),
