@@ -1,14 +1,19 @@
-const DebugUI = @import("DebugUI.zig");
+const std = @import("std");
+const DebugUI = @import("../DebugUI.zig");
+const utils = @import("../utils.zig");
+const Primatives = @import("../Primatives.zig");
+const layout = @import("index.zig");
 
-const Bounds = @import("utils.zig").Bounds;
-const Extents = @import("utils.zig").Extents;
-const ElementLayout = @import("DebugUI.zig").ElementLayout;
-const Rectangle = @import("Primatives.zig").Rectangle;
-const Color = @import("Primatives.zig").Color;
+const Bounds = utils.Bounds;
+const Extents = utils.Extents;
+const ElementLayout = layout.ElementLayout;
+const Rectangle = Primatives.Rectangle;
+const Color = Primatives.Color;
 
 const Panel = @This();
 
 const PADDING = 5;
+const GAP = 5;
 
 width_used: f32,
 height_used: f32,
@@ -36,7 +41,7 @@ pub fn iterLayout(self: *Panel, bounds: Extents) Bounds {
 pub fn getSpace(self: *Panel) Extents {
     return Extents{
         .width = self.bounds.width,
-        .height = self.bounds.height,
+        .height = self.bounds.height - self.height_used - self.line_height,
     };
 }
 

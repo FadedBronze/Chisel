@@ -22,7 +22,9 @@ pub const InputEventInfo = struct {
 };
 
 renderer: *c.SDL_Renderer,
-sans: *c.TTF_Font,
+sans24: *c.TTF_Font,
+sans18: *c.TTF_Font,
+sans12: *c.TTF_Font,
 
 pub fn create() !SDL2Backend {
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
@@ -30,12 +32,14 @@ pub fn create() !SDL2Backend {
     }
 
     if (c.TTF_Init() == -1) return error.TTFInitFailed;
-    const sans = c.TTF_OpenFont("assets/Sans.ttf", 24) orelse return error.FontLoadFailed;
+    const sans24 = c.TTF_OpenFont("assets/Sans.ttf", 24) orelse return error.FontLoadFailed;
+    const sans18 = c.TTF_OpenFont("assets/Sans.ttf", 18) orelse return error.FontLoadFailed;
+    const sans12 = c.TTF_OpenFont("assets/Sans.ttf", 12) orelse return error.FontLoadFailed;
 
     const window = c.SDL_CreateWindow("wowza", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, 800, 800, 0);
     const renderer: *c.SDL_Renderer = c.SDL_CreateRenderer(window, -1, c.SDL_RENDERER_SOFTWARE) orelse return error.SDLInitFailed;
 
-    return SDL2Backend{ .renderer = renderer, .sans = sans };
+    return SDL2Backend{ .renderer = renderer, .sans24 = sans24, .sans18 = sans18, .sans12 = sans12 };
 }
 
 pub fn getEvents() InputEventInfo {
@@ -79,25 +83,31 @@ pub fn getEvents() InputEventInfo {
 }
 
 pub fn getLineWidth(self: *const SDL2Backend, font_id: u32, text: []const u8) f32 {
-    std.debug.assert(font_id == 0);
     var width: i32 = undefined;
-    if (c.TTF_SizeUTF8(self.sans, @ptrCast(text), &width, null) == -1) return 0.0;
+    if (c.TTF_SizeUTF8(self.getFont(font_id), @ptrCast(text), &width, null) == -1) return 0.0;
     return @floatFromInt(width);
 }
 
+fn getFont(self: *const SDL2Backend, font_id: u32) *c.TTF_Font {
+    return switch (font_id) {
+        0 => self.sans24,
+        1 => self.sans18,
+        2 => self.sans12,
+        else => unreachable,
+    };
+}
+
 pub fn getLineHeight(self: *const SDL2Backend, font_id: u32) f32 {
-    std.debug.assert(font_id == 0);
-    return @floatFromInt(c.TTF_FontHeight(self.sans));
+    return @floatFromInt(c.TTF_FontHeight(self.getFont(font_id)));
 }
 
 pub fn getRequiredLinesToFitLetters(self: *const SDL2Backend, font_id: u32, width: f32, text: []const u8) u32 {
-    std.debug.assert(font_id == 0);
     var count: i32 = 0;
     var current_count: u32 = 0;
     var lines: u32 = 0;
 
     while (current_count < text.len) {
-        if (c.TTF_MeasureUTF8(self.sans, @ptrCast(text[current_count..]), @intFromFloat(width), null, &count) == -1) return 0;
+        if (c.TTF_MeasureUTF8(self.getFont(font_id), @ptrCast(text[current_count..]), @intFromFloat(width), null, &count) == -1) return 0;
         current_count += @intCast(count);
         lines += 1;
     }
@@ -106,14 +116,13 @@ pub fn getRequiredLinesToFitLetters(self: *const SDL2Backend, font_id: u32, widt
 }
 
 pub fn getRequiredLinesToFitWords(self: *const SDL2Backend, font_id: u32, width: f32, text: []const u8) u32 {
-    std.debug.assert(font_id == 0);
     var count: u32 = 0;
     var current_count: u32 = 0;
     var lines: u32 = 0;
 
     while (current_count < text.len) {
         if (c.TTF_MeasureUTF8(
-            self.sans,
+            self.getFont(font_id),
             @ptrCast(text[current_count..]),
             @as(i32, @intFromFloat(width)) + 1,
             null,
@@ -205,42 +214,45 @@ pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void
 
     i = 0;
 
-    while (i < primatives.text.len) {
+    while (i < primatives.text_count) {
         const text_block = primatives.text[i];
         var lines: u32 = 0;
         var current_count: u32 = 0;
         var text: [256]u8 = undefined;
 
         @memcpy((&text)[0..text_block.text.len], text_block.text);
+        text[text_block.text.len] = '\x00';
 
         while (current_count < text_block.text.len) {
-            std.debug.assert(text_block.font_id == 0);
-
-            var count: u32 = 0;
+            var original_count: u32 = 0;
 
             if (c.TTF_MeasureUTF8(
-                self.sans,
-                @ptrCast(text_block.text[current_count..]),
+                self.getFont(text_block.font_id),
+                @ptrCast(text[current_count..]),
                 @as(i32, @intFromFloat(text_block.width)) + 1,
                 null,
-                @ptrCast(&count),
+                @ptrCast(&original_count),
             ) == -1) return error.MeasureFailed;
 
-            const not_done = current_count + count < text_block.text.len;
+            var count = original_count;
 
-            if (text_block.text_break == .Word) {
-                while (not_done and text_block.text[current_count + count] != ' ') {
+            if (text_block.text_break == .Word and current_count + count < text_block.text.len) {
+                while (count != 0 and text_block.text[current_count + count] != ' ') {
                     count -= 1;
+                }
+
+                if (count == 0) {
+                    count = original_count;
                 }
             }
 
             const temp = text[current_count + count];
-            text[current_count + count] = 0;
+            text[current_count + count] = '\x00';
 
             var extent: i32 = 0;
 
             if (c.TTF_MeasureText(
-                self.sans,
+                self.getFont(text_block.font_id),
                 @ptrCast(text[current_count..]),
                 @as(i32, @intFromFloat(text_block.width)) + 1,
                 &extent,
@@ -248,7 +260,7 @@ pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void
             ) == -1) return error.MeasureFailed;
 
             const surface: *c.SDL_Surface = c.TTF_RenderText_Solid(
-                self.sans,
+                self.getFont(text_block.font_id),
                 @ptrCast(text[current_count..]),
                 @bitCast(text_block.color),
             );
@@ -256,7 +268,7 @@ pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void
             text[current_count + count] = temp;
 
             const output_texture: *c.SDL_Texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse return error.FailedCreateSurface;
-            const line_height = c.TTF_FontHeight(self.sans);
+            const line_height = c.TTF_FontHeight(self.getFont(text_block.font_id));
             const lines_f32: f32 = @floatFromInt(lines);
             const line_height_f32: f32 = @floatFromInt(line_height);
 

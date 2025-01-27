@@ -2,8 +2,15 @@ const std = @import("std");
 
 const Primatives = @This();
 
+const MAX_RECTANGLES = 1024;
+const MAX_TEXT = 1024;
+const MAX_CHARS = 1024;
+
 rectangles: [MAX_RECTANGLES]Rectangle,
 rectangle_count: usize,
+
+string_buffer: [MAX_CHARS]u8,
+string_count: usize,
 
 text: [MAX_TEXT]TextBlock,
 text_count: usize,
@@ -11,6 +18,7 @@ text_count: usize,
 pub inline fn clear(self: *Primatives) void {
     self.rectangle_count = 0;
     self.text_count = 0;
+    self.string_count = 0;
 }
 
 pub inline fn addRectangle(self: *Primatives, rectangle: Rectangle) void {
@@ -21,6 +29,13 @@ pub inline fn addRectangle(self: *Primatives, rectangle: Rectangle) void {
 pub inline fn addText(self: *Primatives, text: TextBlock) void {
     self.text[self.text_count] = text;
     self.text_count += 1;
+}
+
+pub inline fn addString(self: *Primatives, string: []const u8) []u8 {
+    const slice = self.string_buffer[self.string_count .. self.string_count + string.len];
+    @memcpy(slice, string);
+    self.string_count += string.len;
+    return slice;
 }
 
 pub fn logPrimatives(self: *const Primatives) void {
@@ -36,9 +51,6 @@ pub fn logPrimatives(self: *const Primatives) void {
         i += 1;
     }
 }
-
-const MAX_RECTANGLES = 1024;
-const MAX_TEXT = 1024;
 
 pub const Color = packed struct {
     r: u8,

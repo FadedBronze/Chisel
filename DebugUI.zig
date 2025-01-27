@@ -1,6 +1,8 @@
+const elements = @import("elements/index.zig");
+const layouts = @import("layouts/index.zig");
+
 const Primatives = @import("Primatives.zig");
-const Panel = @import("Panel.zig");
-const Button = @import("Button.zig");
+
 const Bounds = @import("utils.zig").Bounds;
 const Extents = @import("utils.zig").Extents;
 
@@ -9,9 +11,10 @@ const DebugUI = @This();
 const MAX_LAYOUTS = 64;
 const MAX_ELEMENTS = 2048;
 
-active_element: Element,
+active_element: elements.Element,
+active_element_id: u32,
 layout_stack_position: u32,
-layout_stack: [MAX_LAYOUTS]ElementLayout,
+layout_stack: [MAX_LAYOUTS]layouts.ElementLayout,
 
 mouse_down: bool,
 mouse_x: f32,
@@ -35,10 +38,6 @@ pub const Events = packed struct {
     _padding: u2,
 };
 
-pub const Element = union(enum) { button: Button };
-
-pub const ElementLayout = union(enum) { panel: Panel };
-
 pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: bool, delta_time: f32) void {
     self.delta_time = delta_time;
 
@@ -51,7 +50,7 @@ pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: b
     self.mouse_down = mouse_down;
 }
 
-pub inline fn beginLayout(self: *DebugUI, layout: ElementLayout) void {
+pub inline fn beginLayout(self: *DebugUI, layout: layouts.ElementLayout) void {
     self.layout_stack[self.layout_stack_position] = layout;
     self.layout_stack_position += 1;
 }
@@ -59,12 +58,14 @@ pub inline fn beginLayout(self: *DebugUI, layout: ElementLayout) void {
 pub inline fn iterLayout(self: *DebugUI, extents: Extents) Bounds {
     return switch (self.layout_stack[self.layout_stack_position - 1]) {
         .panel => |*layout| layout.iterLayout(extents),
+        .grid => |*layout| layout.iterLayout(extents),
     };
 }
 
 pub inline fn getSpace(self: *DebugUI) Extents {
     return switch (self.layout_stack[self.layout_stack_position - 1]) {
         .panel => |*layout| layout.getSpace(),
+        .grid => |*layout| layout.getSpace(),
     };
 }
 
@@ -72,11 +73,9 @@ pub inline fn endLayout(self: *DebugUI) void {
     self.layout_stack_position -= 1;
 }
 
-pub fn getEvents(self: *const DebugUI, bounds: *const Bounds) ?Events {
+pub fn getEvents(self: *const DebugUI, bounds: *const Bounds) Events {
     const hovering_now = bounds.x < self.mouse_x and self.mouse_x < bounds.x + bounds.width and
         bounds.y < self.mouse_y and self.mouse_y < bounds.y + bounds.height;
-
-    if (!hovering_now) return null;
 
     const hovering_before = bounds.x < self.last_mouse_x and self.last_mouse_x < bounds.x + bounds.width and
         bounds.y < self.last_mouse_y and self.last_mouse_y < bounds.y + bounds.height;
@@ -95,6 +94,7 @@ pub fn getEvents(self: *const DebugUI, bounds: *const Bounds) ?Events {
 pub fn init() DebugUI {
     return DebugUI{
         .active_element = undefined,
+        .active_element_id = 0,
         .last_mouse_down = false,
         .layout_stack = undefined,
         .layout_stack_position = 0,
@@ -109,6 +109,8 @@ pub fn init() DebugUI {
             .rectangles = undefined,
             .text_count = 0,
             .text = undefined,
+            .string_buffer = undefined,
+            .string_count = 0,
         },
     };
 }
