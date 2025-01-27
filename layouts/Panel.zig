@@ -20,6 +20,8 @@ height_used: f32,
 line_height: f32,
 bounds: Bounds,
 
+pub const PanelDirection = enum { Row, Column };
+
 pub fn iterLayout(self: *Panel, bounds: Extents) Bounds {
     self.width_used += bounds.width;
 
@@ -45,8 +47,9 @@ pub fn getSpace(self: *Panel) Extents {
     };
 }
 
+//, _: PanelDirection
 pub fn start(ui: *DebugUI, bounds: Bounds) void {
-    ui.beginLayout(ElementLayout{ .panel = Panel{
+    const element = ElementLayout{ .panel = Panel{
         .bounds = .{
             .x = bounds.x + PADDING,
             .y = bounds.y + PADDING,
@@ -56,7 +59,9 @@ pub fn start(ui: *DebugUI, bounds: Bounds) void {
         .line_height = 0,
         .width_used = 0,
         .height_used = 0,
-    } });
+    } };
+
+    ui.beginLayout(element);
 
     ui.primatives.addRectangle(Rectangle{
         .x = bounds.x,

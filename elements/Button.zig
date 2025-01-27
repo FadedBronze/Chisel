@@ -13,14 +13,23 @@ hover_duration: f32,
 pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const u8, id: u32) bool {
     const button_height = font_backend.getLineHeight(0) * 2 + PADDING * 2;
 
-    const max_space = ui.getSpace();
+    const bounds = bounds: {
+        switch (ui.currentLayout().*) {
+            .grid => |*grid| {
+                break :bounds grid.getCellBounds();
+            },
+            .panel => |*panel| {
+                const max_space = panel.getSpace();
 
-    const space = Extents{
-        .width = max_space.width,
-        .height = button_height,
+                const space = Extents{
+                    .width = max_space.width,
+                    .height = button_height,
+                };
+
+                break :bounds panel.iterLayout(space);
+            },
+        }
     };
-
-    var bounds = ui.iterLayout(space);
 
     const text_block = Primatives.TextBlock{
         .x = PADDING + bounds.x,

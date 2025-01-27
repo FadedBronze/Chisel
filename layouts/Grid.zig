@@ -25,7 +25,7 @@ positioning: GridPositioning,
 bounds: Bounds,
 filled_cells: [MAX_GRID_SIZE][MAX_GRID_SIZE / 8]u8,
 
-pub fn iterLayout(self: *Grid, _: Extents) Bounds {
+pub fn getCellBounds(self: *Grid) Bounds {
     const x_cell_size = @divExact(self.bounds.width - PADDING * @as(f32, @floatFromInt(self.rows - 1)), @as(f32, @floatFromInt(self.rows)));
     const y_cell_size = @divExact(self.bounds.height - PADDING * @as(f32, @floatFromInt(self.cols - 1)), @as(f32, @floatFromInt(self.cols)));
 
@@ -80,7 +80,19 @@ pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void
 }
 
 pub fn start(ui: *DebugUI, bounds: Bounds, rows: u8, cols: u8) void {
-    const max_extents = ui.getSpace();
+    var max_extents: Extents = undefined;
+    var final_bounds: Bounds = undefined;
+
+    switch (ui.currentLayout().*) {
+        .grid => |*grid| {
+            max_extents = grid.getSpace();
+            final_bounds = grid.getCellBounds();
+        },
+        .panel => |*panel| {
+            max_extents = panel.getSpace();
+            final_bounds = panel.iterLayout(Extents{ .width = bounds.width, .height = bounds.height });
+        },
+    }
 
     std.debug.assert(utils.almost_le(bounds.width, max_extents.width));
     std.debug.assert(utils.almost_le(bounds.height, max_extents.height));
@@ -108,7 +120,7 @@ pub fn start(ui: *DebugUI, bounds: Bounds, rows: u8, cols: u8) void {
                 .row = 0,
                 .col = 0,
             },
-            .bounds = ui.iterLayout(Extents{ .width = bounds.width, .height = bounds.height }),
+            .bounds = final_bounds,
         },
     });
 }

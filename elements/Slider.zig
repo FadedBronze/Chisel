@@ -19,22 +19,33 @@ const GAP = 2;
 holding_knob: bool,
 
 pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f32, label: []const u8, id: u32) void {
-    const max_extents = ui.getSpace();
-
     const font_height = font_backend.getLineHeight(2);
 
-    const slider_height = HEIGHT + font_height + GAP;
+    const bounds = bounds: {
+        switch (ui.currentLayout().*) {
+            .grid => |*grid| {
+                break :bounds grid.getCellBounds();
+            },
+            .panel => |*panel| {
+                const max_extents = panel.getSpace();
 
-    const max_bounds = ui.iterLayout(Extents{
-        .width = max_extents.width,
-        .height = slider_height,
-    });
+                const slider_height = HEIGHT + font_height + GAP;
 
-    const bounds = Bounds{
-        .x = max_bounds.x,
-        .y = max_bounds.y + @divTrunc(max_bounds.height - slider_height, 2.0),
-        .width = max_bounds.width,
-        .height = slider_height,
+                const max_bounds = panel.iterLayout(Extents{
+                    .width = max_extents.width,
+                    .height = slider_height,
+                });
+
+                const bounds = Bounds{
+                    .x = max_bounds.x,
+                    .y = max_bounds.y + @divTrunc(max_bounds.height - slider_height, 2.0),
+                    .width = max_bounds.width,
+                    .height = slider_height,
+                };
+
+                break :bounds bounds;
+            },
+        }
     };
 
     // back

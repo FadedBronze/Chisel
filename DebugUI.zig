@@ -55,18 +55,8 @@ pub inline fn beginLayout(self: *DebugUI, layout: layouts.ElementLayout) void {
     self.layout_stack_position += 1;
 }
 
-pub inline fn iterLayout(self: *DebugUI, extents: Extents) Bounds {
-    return switch (self.layout_stack[self.layout_stack_position - 1]) {
-        .panel => |*layout| layout.iterLayout(extents),
-        .grid => |*layout| layout.iterLayout(extents),
-    };
-}
-
-pub inline fn getSpace(self: *DebugUI) Extents {
-    return switch (self.layout_stack[self.layout_stack_position - 1]) {
-        .panel => |*layout| layout.getSpace(),
-        .grid => |*layout| layout.getSpace(),
-    };
+pub inline fn currentLayout(self: *DebugUI) *layouts.ElementLayout {
+    return &self.layout_stack[self.layout_stack_position - 1];
 }
 
 pub inline fn endLayout(self: *DebugUI) void {
