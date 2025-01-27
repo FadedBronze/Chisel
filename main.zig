@@ -24,9 +24,11 @@ const std = @import("std");
 const SDL2Backend = @import("SDL2Backend.zig");
 const DebugUI = @import("DebugUI.zig");
 
-const Bounds = @import("utils.zig").Bounds;
+const Extents = @import("utils.zig").Extents;
 
-pub const Panel = @import("layouts/Panel.zig");
+pub const FlexStrip = @import("layouts/FlexStrip.zig");
+pub const Scroll = @import("elements/Scroll.zig");
+pub const Frame = @import("layouts/Frame.zig");
 pub const Grid = @import("layouts/Grid.zig");
 pub const Slider = @import("elements/Slider.zig");
 pub const Button = @import("elements/Button.zig");
@@ -73,26 +75,17 @@ const App = struct {
         return app;
     }
 
-    pub fn run(self: *App) !void {
-        const events = SDL2Backend.getEvents();
+    fn ui(self: *App) void {
+        Frame.start(&self.debug_ui, 20, 20);
 
-        if (events.flags.quit) {
-            return error.Quit;
-        }
-
-        self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.flags.mouse_down, 1.0 / 60.0);
-        self.debug_ui.primatives.clear();
-
-        Panel.start(&self.debug_ui, Bounds{
-            .x = 20,
-            .y = 20,
+        FlexStrip.start(&self.debug_ui, Extents{
             .width = 300,
             .height = 600,
-        }, Panel.Direction.Column);
+        }, FlexStrip.Direction.Column, true);
 
-        Grid.start(&self.debug_ui, Bounds{
-            .x = 0,
-            .y = 0,
+        Scroll.create(&self.debug_ui, 1203);
+
+        Grid.start(&self.debug_ui, Extents{
             .width = 290,
             .height = 400,
         }, 2, 3);
@@ -107,9 +100,7 @@ const App = struct {
 
         if (self.show_middle_row) {
             Grid.position(&self.debug_ui, 0, 1, 2, 1);
-            Grid.start(&self.debug_ui, Bounds{
-                .x = 0,
-                .y = 0,
+            Grid.start(&self.debug_ui, Extents{
                 .width = 100,
                 .height = 30,
             }, 3, 1);
@@ -140,19 +131,35 @@ const App = struct {
 
         Grid.end(&self.debug_ui);
 
-        Panel.end(&self.debug_ui);
+        FlexStrip.end(&self.debug_ui);
+        Frame.end(&self.debug_ui);
 
-        Panel.start(&self.debug_ui, Bounds{
-            .x = 20,
-            .y = 630,
+        Frame.start(&self.debug_ui, 20, 630);
+        FlexStrip.start(&self.debug_ui, Extents{
             .width = 700,
             .height = 50,
-        }, Panel.Direction.Row);
+        }, FlexStrip.Direction.Row, true);
+
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
         Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
-        Panel.end(&self.debug_ui);
+
+        FlexStrip.end(&self.debug_ui);
+        Frame.end(&self.debug_ui);
+    }
+
+    pub fn run(self: *App) !void {
+        const events = SDL2Backend.getEvents();
+
+        if (events.flags.quit) {
+            return error.Quit;
+        }
+
+        self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.flags.mouse_down, 1.0 / 60.0);
+        self.debug_ui.primatives.clear();
+
+        self.ui();
 
         try self.sdl2_backend.renderSDL2(&self.debug_ui.primatives);
 

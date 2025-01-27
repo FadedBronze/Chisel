@@ -5,21 +5,33 @@ const Extents = @import("utils.zig").Extents;
 
 const DebugUI = @This();
 
-pub const Panel = @import("layouts/Panel.zig");
+pub const FlexStrip = @import("layouts/FlexStrip.zig");
+pub const Frame = @import("layouts/Frame.zig");
 pub const Grid = @import("layouts/Grid.zig");
 pub const Slider = @import("elements/Slider.zig");
 pub const Button = @import("elements/Button.zig");
+pub const Scroll = @import("elements/Scroll.zig");
+pub const ScrollState = Scroll.State;
 
-pub const ElementLayout = union(enum) { panel: Panel, grid: Grid };
-pub const Element = union { button: Button, slider: Slider };
+pub const ElementLayout = union(enum) { flex_strip: FlexStrip, grid: Grid, frame: Frame };
+pub const Element = union { button: Button, slider: Slider, scroll: Scroll };
+pub const RetainedState = struct {
+    id: u32,
+    state: union {
+        scroll: ScrollState,
+    },
+};
 
 const MAX_LAYOUTS = 64;
 const MAX_ELEMENTS = 2048;
+const MAX_STATES = 128;
 
 active_element: Element,
 active_element_id: u32,
-layout_stack_position: u32,
 layout_stack: [MAX_LAYOUTS]ElementLayout,
+layout_stack_position: u32,
+retained_state: [MAX_STATES]RetainedState,
+retained_state_count: u32,
 
 mouse_down: bool,
 mouse_x: f32,
@@ -42,6 +54,28 @@ pub const Events = packed struct {
     mouse_held: bool,
     _padding: u2,
 };
+
+pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: *RetainedState } {
+    var i: usize = 0;
+    while (i < self.retained_state_count) : (i += 1) {
+        if (self.retained_state[i].id == id) return .{
+            .is_undefined = false,
+            .retained = &self.retained_state[i],
+        };
+    }
+
+    self.retained_state_count += 1;
+
+    self.retained_state[self.retained_state_count - 1] = RetainedState{
+        .id = id,
+        .state = undefined,
+    };
+
+    return .{
+        .is_undefined = true,
+        .retained = &self.retained_state[self.retained_state_count - 1],
+    };
+}
 
 pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: bool, delta_time: f32) void {
     self.delta_time = delta_time;
@@ -93,6 +127,8 @@ pub fn init() DebugUI {
         .last_mouse_down = false,
         .layout_stack = undefined,
         .layout_stack_position = 0,
+        .retained_state = undefined,
+        .retained_state_count = 0,
         .mouse_down = false,
         .mouse_x = 0,
         .mouse_y = 0,

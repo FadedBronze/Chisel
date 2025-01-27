@@ -24,20 +24,24 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const
                 text_height = lines * font_backend.getLineHeight(0);
                 break :bounds space;
             },
-            .panel => |*panel| {
-                switch (panel.direction) {
+            .flex_strip => |*flex_strip| {
+                switch (flex_strip.direction) {
                     .Row => {
                         text_height = font_backend.getLineHeight(0);
-                        break :bounds panel.iterLayout(button_width);
+                        break :bounds flex_strip.iterLayout(button_width);
                     },
                     .Column => {
-                        const space = panel.getSpace();
-                        const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, space.width - PADDING * 2, text));
+                        const space = flex_strip.getSpace();
+                        const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, space - PADDING * 2, text));
                         text_height = lines * font_backend.getLineHeight(0);
                         const button_height = text_height + PADDING * 2;
-                        break :bounds panel.iterLayout(button_height);
+                        break :bounds flex_strip.iterLayout(button_height);
                     },
                 }
+            },
+            else => {
+                std.debug.print("Button does not support this type of layout\n", .{});
+                unreachable;
             },
         }
     };
@@ -75,10 +79,6 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const
         ui.active_element_id = id;
     }
 
-    if (local_events.hover_exit) {
-        ui.active_element_id = 0;
-    }
-
     if (ui.active_element_id != id) return false;
 
     const hover = Primatives.Rectangle{
@@ -110,6 +110,10 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const
     if (ui.active_element.button.hover_duration > 1.0) {
         ui.active_element.button.hover_duration = @min(ui.active_element.button.hover_duration, 15.0);
         ui.primatives.addRectangle(tooltip_base);
+    }
+
+    if (local_events.hover_exit) {
+        ui.active_element_id = 0;
     }
 
     return local_events.mouse_down and local_events.mouse_over;

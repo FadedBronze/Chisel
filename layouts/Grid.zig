@@ -38,16 +38,6 @@ pub fn getCellBounds(self: *Grid) Bounds {
     return bounds;
 }
 
-pub fn getSpace(self: *Grid) Extents {
-    const x_cell_size = @divExact(self.bounds.width - PADDING * @as(f32, @floatFromInt(self.rows - 1)), @as(f32, @floatFromInt(self.rows)));
-    const y_cell_size = @divExact(self.bounds.height - PADDING * @as(f32, @floatFromInt(self.cols - 1)), @as(f32, @floatFromInt(self.cols)));
-
-    return Extents{
-        .width = x_cell_size * @as(f32, @floatFromInt(self.positioning.row_span)) + @as(f32, @floatFromInt(self.positioning.row_span - 1)) * PADDING,
-        .height = y_cell_size * @as(f32, @floatFromInt(self.positioning.col_span)) + @as(f32, @floatFromInt(self.positioning.col_span - 1)) * PADDING,
-    };
-}
-
 pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void {
     std.debug.assert(switch (ui.layout_stack[ui.layout_stack_position - 1]) {
         .grid => true,
@@ -78,30 +68,31 @@ pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void
     };
 }
 
-pub fn start(ui: *DebugUI, bounds: Bounds, rows: u8, cols: u8) void {
+pub fn start(ui: *DebugUI, bounds: Extents, rows: u8, cols: u8) void {
     var final_bounds: Bounds = undefined;
 
     switch (ui.currentLayout().*) {
         .grid => |*grid| {
-            const max_extents = grid.getSpace();
             final_bounds = grid.getCellBounds();
 
-            std.debug.assert(utils.almost_le(bounds.width, max_extents.width));
-            std.debug.assert(utils.almost_le(bounds.height, max_extents.height));
+            std.debug.assert(utils.almost_le(bounds.width, final_bounds.width));
+            std.debug.assert(utils.almost_le(bounds.height, final_bounds.height));
         },
-        .panel => |*panel| {
-            const space = panel.getSpace();
-
-            switch (panel.direction) {
+        .flex_strip => |*flex_strip| {
+            switch (flex_strip.direction) {
                 .Row => {
-                    std.debug.assert(utils.almost_le(bounds.width, space.width));
-                    final_bounds = panel.iterLayout(bounds.width);
+                    final_bounds = flex_strip.iterLayout(bounds.width);
                 },
                 .Column => {
-                    std.debug.assert(utils.almost_le(bounds.height, space.height));
-                    final_bounds = panel.iterLayout(bounds.height);
+                    final_bounds = flex_strip.iterLayout(bounds.height);
                 },
             }
+        },
+        .frame => |frame| {
+            final_bounds.x = frame.x;
+            final_bounds.y = frame.y;
+            final_bounds.width = bounds.width;
+            final_bounds.height = bounds.height;
         },
     }
 

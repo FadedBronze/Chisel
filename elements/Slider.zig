@@ -33,22 +33,23 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
                     .height = actual_height,
                 };
             },
-            .panel => |*panel| {
+            .flex_strip => |*flex_strip| {
                 const slider_height = HEIGHT + font_height + GAP;
-                const space = panel.getSpace();
 
-                switch (panel.direction) {
+                switch (flex_strip.direction) {
                     .Row => {
-                        std.debug.assert(space.width >= 250);
-                        var bounds = panel.iterLayout(250);
+                        var bounds = flex_strip.iterLayout(250);
                         bounds.y += @divExact(bounds.height - actual_height, 2);
                         break :bounds bounds;
                     },
                     .Column => {
-                        std.debug.assert(space.height >= slider_height);
-                        break :bounds panel.iterLayout(slider_height);
+                        break :bounds flex_strip.iterLayout(slider_height);
                     },
                 }
+            },
+            else => {
+                std.debug.print("Slider does not support this type of layout\n", .{});
+                unreachable;
             },
         }
     };
