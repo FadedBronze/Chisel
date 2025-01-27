@@ -1,6 +1,3 @@
-const elements = @import("elements/index.zig");
-const layouts = @import("layouts/index.zig");
-
 const Primatives = @import("Primatives.zig");
 
 const Bounds = @import("utils.zig").Bounds;
@@ -8,13 +5,21 @@ const Extents = @import("utils.zig").Extents;
 
 const DebugUI = @This();
 
+pub const Panel = @import("layouts/Panel.zig");
+pub const Grid = @import("layouts/Grid.zig");
+pub const Slider = @import("elements/Slider.zig");
+pub const Button = @import("elements/Button.zig");
+
+pub const ElementLayout = union(enum) { panel: Panel, grid: Grid };
+pub const Element = union { button: Button, slider: Slider };
+
 const MAX_LAYOUTS = 64;
 const MAX_ELEMENTS = 2048;
 
-active_element: elements.Element,
+active_element: Element,
 active_element_id: u32,
 layout_stack_position: u32,
-layout_stack: [MAX_LAYOUTS]layouts.ElementLayout,
+layout_stack: [MAX_LAYOUTS]ElementLayout,
 
 mouse_down: bool,
 mouse_x: f32,
@@ -50,12 +55,12 @@ pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: b
     self.mouse_down = mouse_down;
 }
 
-pub inline fn beginLayout(self: *DebugUI, layout: layouts.ElementLayout) void {
+pub inline fn beginLayout(self: *DebugUI, layout: ElementLayout) void {
     self.layout_stack[self.layout_stack_position] = layout;
     self.layout_stack_position += 1;
 }
 
-pub inline fn currentLayout(self: *DebugUI) *layouts.ElementLayout {
+pub inline fn currentLayout(self: *DebugUI) *ElementLayout {
     return &self.layout_stack[self.layout_stack_position - 1];
 }
 

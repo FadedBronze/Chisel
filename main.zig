@@ -23,15 +23,13 @@ const std = @import("std");
 
 const SDL2Backend = @import("SDL2Backend.zig");
 const DebugUI = @import("DebugUI.zig");
-const elements = @import("elements/index.zig");
-const layouts = @import("layouts/index.zig");
 
 const Bounds = @import("utils.zig").Bounds;
 
-const Button = elements.Button;
-const Slider = elements.Slider;
-const Grid = layouts.Grid;
-const Panel = layouts.Panel;
+pub const Panel = @import("layouts/Panel.zig");
+pub const Grid = @import("layouts/Grid.zig");
+pub const Slider = @import("elements/Slider.zig");
+pub const Button = @import("elements/Button.zig");
 
 const MeaninglessText = struct {
     text: []const u8,
@@ -90,13 +88,13 @@ const App = struct {
             .y = 20,
             .width = 300,
             .height = 600,
-        });
+        }, Panel.Direction.Column);
 
         Grid.start(&self.debug_ui, Bounds{
             .x = 0,
             .y = 0,
             .width = 290,
-            .height = 290,
+            .height = 400,
         }, 2, 3);
 
         Grid.position(&self.debug_ui, 0, 0, 1, 1);
@@ -145,14 +143,15 @@ const App = struct {
         Panel.end(&self.debug_ui);
 
         Panel.start(&self.debug_ui, Bounds{
-            .x = 470,
-            .y = 20,
-            .width = 300,
-            .height = 600,
-        });
+            .x = 20,
+            .y = 630,
+            .width = 700,
+            .height = 50,
+        }, Panel.Direction.Row);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
-        _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
+        Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
+        _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
         Panel.end(&self.debug_ui);
 
         try self.sdl2_backend.renderSDL2(&self.debug_ui.primatives);

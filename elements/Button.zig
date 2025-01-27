@@ -1,8 +1,10 @@
+const std = @import("std");
+
 const Primatives = @import("../Primatives.zig");
 const DebugUI = @import("../DebugUI.zig");
 const Bounds = @import("../utils.zig").Bounds;
 const Extents = @import("../utils.zig").Extents;
-const Element = @import("index.zig").Element;
+const Element = DebugUI.Element;
 
 const Button = @This();
 
@@ -11,29 +13,40 @@ const PADDING = 8;
 hover_duration: f32,
 
 pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const u8, id: u32) bool {
-    const button_height = font_backend.getLineHeight(0) * 2 + PADDING * 2;
+    const button_width = font_backend.getLineWidth(0, text) + PADDING * 2;
+    var text_height: f32 = 0;
 
     const bounds = bounds: {
         switch (ui.currentLayout().*) {
             .grid => |*grid| {
-                break :bounds grid.getCellBounds();
+                const space = grid.getCellBounds();
+                const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, space.width - PADDING * 2, text));
+                text_height = lines * font_backend.getLineHeight(0);
+                break :bounds space;
             },
             .panel => |*panel| {
-                const max_space = panel.getSpace();
-
-                const space = Extents{
-                    .width = max_space.width,
-                    .height = button_height,
-                };
-
-                break :bounds panel.iterLayout(space);
+                switch (panel.direction) {
+                    .Row => {
+                        text_height = font_backend.getLineHeight(0);
+                        break :bounds panel.iterLayout(button_width);
+                    },
+                    .Column => {
+                        const space = panel.getSpace();
+                        const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, space.width - PADDING * 2, text));
+                        text_height = lines * font_backend.getLineHeight(0);
+                        const button_height = text_height + PADDING * 2;
+                        break :bounds panel.iterLayout(button_height);
+                    },
+                }
             },
         }
     };
 
+    const remaining_vertical_space = bounds.height - text_height;
+
     const text_block = Primatives.TextBlock{
         .x = PADDING + bounds.x,
-        .y = PADDING + bounds.y,
+        .y = bounds.y + @divExact(remaining_vertical_space, 2),
         .width = bounds.width - PADDING * 2,
         .text = text,
         .color = Primatives.Color.white(),

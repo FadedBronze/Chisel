@@ -4,7 +4,7 @@ const Primatives = @import("../Primatives.zig");
 const DebugUI = @import("../DebugUI.zig");
 const Bounds = @import("../utils.zig").Bounds;
 const Extents = @import("../utils.zig").Extents;
-const Element = @import("index.zig").Element;
+const Element = DebugUI.Element;
 
 const Rectangle = Primatives.Rectangle;
 const Color = Primatives.Color;
@@ -20,30 +20,35 @@ holding_knob: bool,
 
 pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f32, label: []const u8, id: u32) void {
     const font_height = font_backend.getLineHeight(2);
+    const actual_height = font_height + GAP + HEIGHT;
 
     const bounds = bounds: {
         switch (ui.currentLayout().*) {
             .grid => |*grid| {
-                break :bounds grid.getCellBounds();
+                const max_bounds = grid.getCellBounds();
+                break :bounds Bounds{
+                    .x = max_bounds.x,
+                    .y = max_bounds.y + @divExact(max_bounds.height - actual_height, 2),
+                    .width = max_bounds.width,
+                    .height = actual_height,
+                };
             },
             .panel => |*panel| {
-                const max_extents = panel.getSpace();
-
                 const slider_height = HEIGHT + font_height + GAP;
+                const space = panel.getSpace();
 
-                const max_bounds = panel.iterLayout(Extents{
-                    .width = max_extents.width,
-                    .height = slider_height,
-                });
-
-                const bounds = Bounds{
-                    .x = max_bounds.x,
-                    .y = max_bounds.y + @divTrunc(max_bounds.height - slider_height, 2.0),
-                    .width = max_bounds.width,
-                    .height = slider_height,
-                };
-
-                break :bounds bounds;
+                switch (panel.direction) {
+                    .Row => {
+                        std.debug.assert(space.width >= 250);
+                        var bounds = panel.iterLayout(250);
+                        bounds.y += @divExact(bounds.height - actual_height, 2);
+                        break :bounds bounds;
+                    },
+                    .Column => {
+                        std.debug.assert(space.height >= slider_height);
+                        break :bounds panel.iterLayout(slider_height);
+                    },
+                }
             },
         }
     };

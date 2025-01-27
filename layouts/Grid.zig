@@ -2,11 +2,10 @@ const std = @import("std");
 const DebugUI = @import("../DebugUI.zig");
 const utils = @import("../utils.zig");
 const Primatives = @import("../Primatives.zig");
-const layout = @import("index.zig");
 
 const Bounds = utils.Bounds;
 const Extents = utils.Extents;
-const ElementLayout = layout.ElementLayout;
+const ElementLayout = DebugUI.ElementLayout;
 const Rectangle = Primatives.Rectangle;
 const Color = Primatives.Color;
 
@@ -80,22 +79,31 @@ pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void
 }
 
 pub fn start(ui: *DebugUI, bounds: Bounds, rows: u8, cols: u8) void {
-    var max_extents: Extents = undefined;
     var final_bounds: Bounds = undefined;
 
     switch (ui.currentLayout().*) {
         .grid => |*grid| {
-            max_extents = grid.getSpace();
+            const max_extents = grid.getSpace();
             final_bounds = grid.getCellBounds();
+
+            std.debug.assert(utils.almost_le(bounds.width, max_extents.width));
+            std.debug.assert(utils.almost_le(bounds.height, max_extents.height));
         },
         .panel => |*panel| {
-            max_extents = panel.getSpace();
-            final_bounds = panel.iterLayout(Extents{ .width = bounds.width, .height = bounds.height });
+            const space = panel.getSpace();
+
+            switch (panel.direction) {
+                .Row => {
+                    std.debug.assert(utils.almost_le(bounds.width, space.width));
+                    final_bounds = panel.iterLayout(bounds.width);
+                },
+                .Column => {
+                    std.debug.assert(utils.almost_le(bounds.height, space.height));
+                    final_bounds = panel.iterLayout(bounds.height);
+                },
+            }
         },
     }
-
-    std.debug.assert(utils.almost_le(bounds.width, max_extents.width));
-    std.debug.assert(utils.almost_le(bounds.height, max_extents.height));
 
     var grid: [MAX_GRID_SIZE][MAX_GRID_SIZE / 8]u8 = undefined;
 
