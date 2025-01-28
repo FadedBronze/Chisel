@@ -12,7 +12,7 @@ const Primatives = @import("../Primatives.zig");
 const Rectangle = Primatives.Rectangle;
 const Color = Primatives.Color;
 
-const GAP = 5;
+pub const GAP = 5;
 const PADDING = 5;
 
 pub const Direction = enum { Row, Column };

@@ -19,6 +19,8 @@ pub const InputEventInfo = struct {
     flags: InputEventFlags,
     mouse_x: f32,
     mouse_y: f32,
+    scroll_x: f32,
+    scroll_y: f32,
 };
 
 renderer: *c.SDL_Renderer,
@@ -51,6 +53,8 @@ pub fn getEvents() InputEventInfo {
         },
         .mouse_x = 0,
         .mouse_y = 0,
+        .scroll_x = 0,
+        .scroll_y = 0,
     };
 
     var event: c.SDL_Event = undefined;
@@ -62,6 +66,10 @@ pub fn getEvents() InputEventInfo {
             },
             c.SDL_MOUSEBUTTONDOWN => {
                 global_events.flags.mouse_down = true;
+            },
+            c.SDL_MOUSEWHEEL => {
+                global_events.scroll_x = @floatFromInt(event.wheel.x);
+                global_events.scroll_y = @floatFromInt(event.wheel.y);
             },
             else => {},
         }

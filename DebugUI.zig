@@ -36,6 +36,8 @@ retained_state_count: u32,
 mouse_down: bool,
 mouse_x: f32,
 mouse_y: f32,
+scroll_x: f32,
+scroll_y: f32,
 
 last_mouse_down: bool,
 last_mouse_x: f32,
@@ -77,7 +79,7 @@ pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: 
     };
 }
 
-pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: bool, delta_time: f32) void {
+pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, scroll_x: f32, scroll_y: f32, mouse_down: bool, delta_time: f32) void {
     self.delta_time = delta_time;
 
     self.last_mouse_down = self.mouse_down;
@@ -86,6 +88,10 @@ pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, mouse_down: b
 
     self.mouse_x = mouse_x;
     self.mouse_y = mouse_y;
+
+    self.scroll_x = scroll_x;
+    self.scroll_y = scroll_y;
+
     self.mouse_down = mouse_down;
 }
 
@@ -134,6 +140,8 @@ pub fn init() DebugUI {
         .mouse_y = 0,
         .last_mouse_x = 0,
         .last_mouse_y = 0,
+        .scroll_x = 0,
+        .scroll_y = 0,
         .delta_time = 1.0 / 60.0,
         .primatives = Primatives{
             .rectangle_count = 0,

@@ -80,10 +80,10 @@ const App = struct {
 
         FlexStrip.start(&self.debug_ui, Extents{
             .width = 300,
-            .height = 600,
+            .height = 200,
         }, FlexStrip.Direction.Column, true);
 
-        Scroll.create(&self.debug_ui, 1203);
+        Scroll.start(&self.debug_ui, 1203);
 
         Grid.start(&self.debug_ui, Extents{
             .width = 290,
@@ -130,7 +130,7 @@ const App = struct {
         }
 
         Grid.end(&self.debug_ui);
-
+        Scroll.end(&self.debug_ui, 1203);
         FlexStrip.end(&self.debug_ui);
         Frame.end(&self.debug_ui);
 
@@ -140,10 +140,12 @@ const App = struct {
             .height = 50,
         }, FlexStrip.Direction.Row, true);
 
+        Scroll.start(&self.debug_ui, 123203);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
         Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
         _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
+        Scroll.end(&self.debug_ui, 123203);
 
         FlexStrip.end(&self.debug_ui);
         Frame.end(&self.debug_ui);
@@ -156,7 +158,7 @@ const App = struct {
             return error.Quit;
         }
 
-        self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.flags.mouse_down, 1.0 / 60.0);
+        self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.scroll_x, events.scroll_y, events.flags.mouse_down, 1.0 / 60.0);
         self.debug_ui.primatives.clear();
 
         self.ui();
