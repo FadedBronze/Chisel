@@ -102,6 +102,8 @@ pub fn start(ui: *DebugUI, extents: Extents, direction: Direction, render_backgr
         });
     }
 
+    ui.primatives.start_clip(final_bounds.x + PADDING, final_bounds.y + PADDING, final_bounds.width - PADDING * 2, final_bounds.height - PADDING * 2);
+
     ui.beginLayout(ElementLayout{ .flex_strip = FlexStrip{
         .bounds = if (render_background) Bounds{
             .width = final_bounds.width - PADDING * 2,
@@ -115,5 +117,6 @@ pub fn start(ui: *DebugUI, extents: Extents, direction: Direction, render_backgr
 }
 
 pub fn end(ui: *DebugUI) void {
+    ui.primatives.end_clip();
     ui.endLayout();
 }

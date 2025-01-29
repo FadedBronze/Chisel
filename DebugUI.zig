@@ -150,6 +150,10 @@ pub fn init() DebugUI {
             .text = undefined,
             .string_buffer = undefined,
             .string_count = 0,
+            .clip_count = 0,
+            .clips = undefined,
+            .clip_stack = undefined,
+            .clip_stack_size = 0,
         },
     };
 }
