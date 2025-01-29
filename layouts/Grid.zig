@@ -74,9 +74,6 @@ pub fn start(ui: *DebugUI, bounds: Extents, rows: u8, cols: u8) void {
     switch (ui.currentLayout().*) {
         .grid => |*grid| {
             final_bounds = grid.getCellBounds();
-
-            std.debug.assert(utils.almost_le(bounds.width, final_bounds.width));
-            std.debug.assert(utils.almost_le(bounds.height, final_bounds.height));
         },
         .flex_strip => |*flex_strip| {
             switch (flex_strip.direction) {

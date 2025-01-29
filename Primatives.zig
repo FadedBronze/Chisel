@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Primatives = @This();
+const Bounds = @import("utils.zig").Bounds;
 
 const MAX_RECTANGLES = 1024;
 const MAX_TEXT = 1024;
@@ -16,36 +17,43 @@ string_count: usize,
 text: [MAX_TEXT]TextBlock,
 text_count: usize,
 
-clips: [MAX_CLIPS]ClipRectangle,
+clips: [MAX_CLIPS]Bounds,
 clip_count: usize,
-clip_stack: [MAX_CLIPS / 4]usize,
+
+clip_stack: [MAX_CLIPS / 4]ClipStackOrder,
 clip_stack_size: usize,
 
 pub inline fn start_clip(self: *Primatives, x: f32, y: f32, width: f32, height: f32) void {
-    self.clips[self.clip_count] = ClipRectangle{
-        .width = width,
-        .height = height,
+    self.clips[self.clip_count] = Bounds{
         .x = x,
         .y = y,
-        .rectangle_range_start = self.rectangle_count,
-        .text_range_start = self.text_count,
-        .rectangle_range_end = 0,
-        .text_range_end = 0,
+        .width = width,
+        .height = height,
     };
 
-    self.clip_stack[self.clip_stack_size] = self.clip_count;
+    if (self.clip_stack_size != 0) {
+        self.clips[self.clip_count] = self.clips[self.clip_count].clip(&self.clips[self.clip_count - 1]);
+    }
+
+    self.clip_count += 1;
+
+    self.clip_stack[self.clip_stack_size] = ClipStackOrder{
+        .type = .Begin,
+        .rectangle_count = @intCast(self.rectangle_count),
+        .text_count = @intCast(self.text_count),
+    };
 
     self.clip_stack_size += 1;
-    self.clip_count += 1;
 }
 
 pub inline fn end_clip(self: *Primatives) void {
-    const last_clip = self.clip_stack[self.clip_stack_size - 1];
+    self.clip_stack[self.clip_stack_size] = ClipStackOrder{
+        .type = .End,
+        .rectangle_count = @intCast(self.rectangle_count),
+        .text_count = @intCast(self.text_count),
+    };
 
-    self.clips[last_clip].rectangle_range_end = self.rectangle_count;
-    self.clips[last_clip].text_range_end = self.text_count;
-
-    self.clip_stack_size -= 1;
+    self.clip_stack_size += 1;
 }
 
 pub inline fn clear(self: *Primatives) void {
@@ -128,13 +136,8 @@ pub const TextBlock = struct {
     text: []const u8,
 };
 
-pub const ClipRectangle = struct {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    rectangle_range_start: usize,
-    rectangle_range_end: usize,
-    text_range_start: usize,
-    text_range_end: usize,
+pub const ClipStackOrder = packed struct {
+    type: enum { Begin, End },
+    rectangle_count: u31,
+    text_count: u32,
 };

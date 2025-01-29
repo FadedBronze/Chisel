@@ -70,9 +70,6 @@ pub fn start(ui: *DebugUI, extents: Extents, direction: Direction, render_backgr
     switch (ui.currentLayout().*) {
         .grid => |*grid| {
             final_bounds = grid.getCellBounds();
-
-            std.debug.assert(utils.almost_le(extents.width, final_bounds.width));
-            std.debug.assert(utils.almost_le(extents.height, final_bounds.height));
         },
         .flex_strip => |*flex_strip| {
             switch (flex_strip.direction) {
@@ -100,9 +97,11 @@ pub fn start(ui: *DebugUI, extents: Extents, direction: Direction, render_backgr
             .x = final_bounds.x,
             .y = final_bounds.y,
         });
-    }
 
-    ui.primatives.start_clip(final_bounds.x + PADDING, final_bounds.y + PADDING, final_bounds.width - PADDING * 2, final_bounds.height - PADDING * 2);
+        ui.primatives.start_clip(final_bounds.x + PADDING, final_bounds.y + PADDING, final_bounds.width - PADDING * 2, final_bounds.height - PADDING * 2);
+    } else {
+        ui.primatives.start_clip(final_bounds.x, final_bounds.y, final_bounds.width, final_bounds.height);
+    }
 
     ui.beginLayout(ElementLayout{ .flex_strip = FlexStrip{
         .bounds = if (render_background) Bounds{

@@ -148,82 +148,11 @@ pub fn getRequiredLinesToFitWords(self: *const SDL2Backend, font_id: u32, width:
     return lines;
 }
 
-pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void {
-    var vertices: [5096]c.SDL_Vertex = undefined;
-    var indices: [5096 * 6]i32 = undefined;
-    var vertex_count: usize = 0;
-    var index_count: usize = 0;
-
+fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBlock) !void {
     var i: usize = 0;
-    while (i < primatives.rectangle_count) : (i += 1) {
-        vertices[vertex_count] = c.SDL_Vertex{
-            .position = .{
-                .x = primatives.rectangles[i].x,
-                .y = primatives.rectangles[i].y,
-            },
-            .color = @bitCast(primatives.rectangles[i].color),
-            .tex_coord = .{
-                .x = 0,
-                .y = 0,
-            },
-        };
 
-        vertices[vertex_count + 1] = c.SDL_Vertex{
-            .position = .{
-                .x = primatives.rectangles[i].x + primatives.rectangles[i].width,
-                .y = primatives.rectangles[i].y,
-            },
-            .color = @bitCast(primatives.rectangles[i].color),
-            .tex_coord = .{
-                .x = 0,
-                .y = 0,
-            },
-        };
-
-        vertices[vertex_count + 2] = c.SDL_Vertex{
-            .position = .{
-                .x = primatives.rectangles[i].x + primatives.rectangles[i].width,
-                .y = primatives.rectangles[i].y + primatives.rectangles[i].height,
-            },
-            .color = @bitCast(primatives.rectangles[i].color),
-            .tex_coord = .{
-                .x = 0,
-                .y = 0,
-            },
-        };
-
-        vertices[vertex_count + 3] = c.SDL_Vertex{
-            .position = .{
-                .x = primatives.rectangles[i].x,
-                .y = primatives.rectangles[i].y + primatives.rectangles[i].height,
-            },
-            .color = @bitCast(primatives.rectangles[i].color),
-            .tex_coord = .{
-                .x = 0,
-                .y = 0,
-            },
-        };
-
-        indices[index_count] = @as(i32, @intCast(vertex_count));
-        indices[index_count + 1] = @as(i32, @intCast(vertex_count)) + 1;
-        indices[index_count + 2] = @as(i32, @intCast(vertex_count)) + 2;
-        indices[index_count + 3] = @as(i32, @intCast(vertex_count)) + 0;
-        indices[index_count + 4] = @as(i32, @intCast(vertex_count)) + 2;
-        indices[index_count + 5] = @as(i32, @intCast(vertex_count)) + 3;
-
-        vertex_count += 4;
-        index_count += 6;
-    }
-
-    if (c.SDL_SetRenderDrawColor(self.renderer, 0, 0, 0, 255) == -1) return error.SDLDrawFailed;
-    if (c.SDL_RenderClear(self.renderer) == -1) return error.SDLDrawFailed;
-
-    if (c.SDL_RenderGeometry(self.renderer, null, &vertices, @intCast(vertex_count), &indices, @intCast(index_count)) == -1) return error.SDLDrawFailed;
-
-    i = 0;
-
-    while (i < primatives.text_count) {
-        const text_block = primatives.text[i];
+    while (i < text_blocks.len) {
+        const text_block = text_blocks[i];
         var lines: u32 = 0;
         var current_count: u32 = 0;
         var text: [256]u8 = undefined;
@@ -306,6 +235,139 @@ pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void
 
         i += 1;
     }
+}
+
+pub fn renderRectangles(self: *const SDL2Backend, rectangles: []const Primatives.Rectangle) !void {
+    var vertices: [1024]c.SDL_Vertex = undefined;
+    var indices: [1024 * 6]i32 = undefined;
+    var vertex_count: usize = 0;
+    var index_count: usize = 0;
+
+    var i: usize = 0;
+    while (i < rectangles.len) : (i += 1) {
+        vertices[vertex_count] = c.SDL_Vertex{
+            .position = .{
+                .x = rectangles[i].x,
+                .y = rectangles[i].y,
+            },
+            .color = @bitCast(rectangles[i].color),
+            .tex_coord = .{
+                .x = 0,
+                .y = 0,
+            },
+        };
+
+        vertices[vertex_count + 1] = c.SDL_Vertex{
+            .position = .{
+                .x = rectangles[i].x + rectangles[i].width,
+                .y = rectangles[i].y,
+            },
+            .color = @bitCast(rectangles[i].color),
+            .tex_coord = .{
+                .x = 0,
+                .y = 0,
+            },
+        };
+
+        vertices[vertex_count + 2] = c.SDL_Vertex{
+            .position = .{
+                .x = rectangles[i].x + rectangles[i].width,
+                .y = rectangles[i].y + rectangles[i].height,
+            },
+            .color = @bitCast(rectangles[i].color),
+            .tex_coord = .{
+                .x = 0,
+                .y = 0,
+            },
+        };
+
+        vertices[vertex_count + 3] = c.SDL_Vertex{
+            .position = .{
+                .x = rectangles[i].x,
+                .y = rectangles[i].y + rectangles[i].height,
+            },
+            .color = @bitCast(rectangles[i].color),
+            .tex_coord = .{
+                .x = 0,
+                .y = 0,
+            },
+        };
+
+        indices[index_count] = @as(i32, @intCast(vertex_count));
+        indices[index_count + 1] = @as(i32, @intCast(vertex_count)) + 1;
+        indices[index_count + 2] = @as(i32, @intCast(vertex_count)) + 2;
+        indices[index_count + 3] = @as(i32, @intCast(vertex_count)) + 0;
+        indices[index_count + 4] = @as(i32, @intCast(vertex_count)) + 2;
+        indices[index_count + 5] = @as(i32, @intCast(vertex_count)) + 3;
+
+        vertex_count += 4;
+        index_count += 6;
+    }
+
+    if (c.SDL_SetRenderDrawColor(self.renderer, 0, 0, 0, 255) == -1) return error.SDLDrawFailed;
+    if (c.SDL_RenderGeometry(self.renderer, null, &vertices, @intCast(vertex_count), &indices, @intCast(index_count)) == -1) return error.SDLDrawFailed;
+}
+
+pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void {
+    if (c.SDL_RenderClear(self.renderer) == -1) return error.SDLDrawFailed;
+
+    if (primatives.clip_count == 0) {
+        try self.renderRectangles(primatives.rectangles[0..primatives.rectangle_count]);
+        try self.renderText(primatives.text[0..primatives.text_count]);
+
+        c.SDL_RenderPresent(self.renderer);
+        return;
+    }
+
+    try self.renderRectangles(primatives.rectangles[0..primatives.clip_stack[0].rectangle_count]);
+    try self.renderText(primatives.text[0..primatives.clip_stack[0].text_count]);
+
+    var clip_count: usize = 0;
+
+    var active_clip_index_stack: [64]usize = undefined;
+    var active_clip_index_stack_size: usize = 0;
+
+    var i: usize = 0;
+    while (i < primatives.clip_stack_size - 1) : (i += 1) {
+        const current_clip = primatives.clip_stack[i];
+        const next_clip = primatives.clip_stack[i + 1];
+
+        if (current_clip.type == .Begin) {
+            active_clip_index_stack[active_clip_index_stack_size] = clip_count;
+            active_clip_index_stack_size += 1;
+        } else {
+            active_clip_index_stack_size -= 1;
+        }
+
+        if (next_clip.type == .Begin) {
+            clip_count += 1;
+        }
+
+        if (active_clip_index_stack_size == 0) {
+            _ = c.SDL_RenderSetClipRect(self.renderer, null);
+        } else {
+            _ = c.SDL_RenderSetClipRect(self.renderer, null);
+            const rect = c.SDL_Rect{
+                .x = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].x),
+                .y = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].y),
+                .w = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].width),
+                .h = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].height),
+            };
+
+            _ = c.SDL_RenderSetClipRect(self.renderer, &rect);
+        }
+
+        try self.renderRectangles(primatives.rectangles[current_clip.rectangle_count..next_clip.rectangle_count]);
+        try self.renderText(primatives.text[current_clip.text_count..next_clip.text_count]);
+    }
+
+    const last_rectangle = primatives.clip_stack[primatives.clip_stack_size - 1].rectangle_count;
+    const last_text = primatives.clip_stack[primatives.clip_stack_size - 1].text_count;
+
+    _ = c.SDL_RenderSetClipRect(self.renderer, null);
+
+    try self.renderRectangles(primatives.rectangles[last_rectangle..primatives.rectangle_count]);
+    try self.renderText(primatives.text[last_text..primatives.text_count]);
 
     c.SDL_RenderPresent(self.renderer);
 }

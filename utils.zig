@@ -7,23 +7,18 @@ pub const Bounds = struct {
     y: f32,
     height: f32,
     width: f32,
+
+    pub fn clip(self: *const Bounds, outer: *const Bounds) Bounds {
+        return Bounds{
+            .x = @max(outer.x, self.x),
+            .y = @max(outer.y, self.y),
+            .width = @min(outer.x + outer.width, self.x + self.width) - @max(outer.x, self.x),
+            .height = @min(outer.y + outer.height, self.y + self.height) - @max(outer.y, self.y),
+        };
+    }
 };
 
 pub const Extents = struct {
     width: f32,
     height: f32,
 };
-
-const NEGLIGIBLE_DIFFERENCE = 0.001;
-
-pub inline fn almost_le(a: anytype, b: anytype) bool {
-    return a < b or almost_eq(a, b);
-}
-
-pub inline fn almost_ge(a: anytype, b: anytype) bool {
-    return a > b or almost_eq(a, b);
-}
-
-pub inline fn almost_eq(a: anytype, b: anytype) bool {
-    return a - b < NEGLIGIBLE_DIFFERENCE;
-}
