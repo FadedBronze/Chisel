@@ -68,8 +68,8 @@ pub fn getEvents() InputEventInfo {
                 global_events.flags.mouse_down = true;
             },
             c.SDL_MOUSEWHEEL => {
-                global_events.scroll_x = @floatFromInt(event.wheel.x);
-                global_events.scroll_y = @floatFromInt(event.wheel.y);
+                global_events.scroll_x += @floatFromInt(event.wheel.x);
+                global_events.scroll_y += @floatFromInt(event.wheel.y);
             },
             else => {},
         }

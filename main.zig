@@ -99,14 +99,14 @@ const App = struct {
 
             FlexStrip.start(&self.debug_ui, Extents{
                 .width = 400,
-                .height = 400,
+                .height = 500,
             }, FlexStrip.Direction.Column, true);
 
             Scroll.start(&self.debug_ui, 1203);
 
             Grid.start(&self.debug_ui, Extents{
                 .width = 400,
-                .height = 600,
+                .height = 800,
             }, 2, 6);
 
             Grid.position(&self.debug_ui, 0, 0, 1, 1);
@@ -148,7 +148,7 @@ const App = struct {
                 Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
                 _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
 
-                Scroll.end(&self.debug_ui, 123203);
+                Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 123203);
                 FlexStrip.end(&self.debug_ui);
             } else {
                 Grid.position(&self.debug_ui, 0, 1, 2, 1);
@@ -159,7 +159,7 @@ const App = struct {
             }
 
             Grid.end(&self.debug_ui);
-            Scroll.end(&self.debug_ui, 1203);
+            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 1203);
             FlexStrip.end(&self.debug_ui);
             Frame.end(&self.debug_ui);
         }

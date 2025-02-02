@@ -3,6 +3,7 @@ const DebugUI = @import("../DebugUI.zig");
 const Scroll = @This();
 const Element = DebugUI.Element;
 const FlexStrip = @import("../layouts/FlexStrip.zig");
+const Bounds = @import("../utils.zig").Bounds;
 
 pub const State = struct {
     scroll_pos: f32,
@@ -11,40 +12,29 @@ pub const State = struct {
 velocity: f32,
 elapsed: f32,
 
-const DECAY_TIME = 0.75;
+const DECAY: f32 = 0.25;
+
+pub const Mode = enum {
+    Smooth,
+    Linear,
+};
+
+inline fn updateVelocity(velocity: f32, delta_time: f32, scroll_y: f32, mode: Mode) f32 {
+    if (mode == .Smooth) {
+        const lambda = -@log(delta_time) / DECAY;
+        const decay = @exp(-lambda * delta_time);
+        return (velocity + scroll_y * delta_time * 520.0) * decay;
+    } else if (mode == .Linear) {
+        return scroll_y * delta_time * 1000.0;
+    } else unreachable;
+}
 
 pub fn start(ui: *DebugUI, id: u32) void {
     std.debug.assert(ui.currentLayout().* == .flex_strip);
 
-    const events = ui.getEvents(&ui.currentLayout().flex_strip.bounds);
+    const state = ui.getState(id);
 
-    if (events.mouse_over and ui.scroll_y != 0 and ui.active_element_id != id) {
-        ui.active_element_id = id;
-        ui.active_element = Element{ .scroll = Scroll{ .velocity = 0, .elapsed = 0 } };
-    }
-
-    var state = ui.getState(id);
-
-    if (state.is_undefined) {
-        state.retained.state.scroll.scroll_pos = 0;
-    }
-
-    if (ui.active_element_id == id) {
-        state.retained.state.scroll.scroll_pos += ui.active_element.scroll.velocity * 25;
-
-        //if (ui.active_element.scroll.clear_velocity) {
-        //    ui.active_element.scroll.velocity = 0;
-        //    ui.active_element.scroll.clear_velocity = false;
-        //}
-
-        if (ui.scroll_y == 0) {
-            ui.active_element.scroll.elapsed = 0;
-        }
-
-        if (!events.mouse_over or events.mouse_down) {
-            ui.active_element_id = 0;
-        }
-    }
+    if (state.is_undefined) return;
 
     if (ui.currentLayout().flex_strip.direction == .Column) {
         ui.currentLayout().flex_strip.bounds.y += state.retained.state.scroll.scroll_pos;
@@ -53,31 +43,64 @@ pub fn start(ui: *DebugUI, id: u32) void {
     }
 }
 
-pub fn end(ui: *DebugUI, id: u32) void {
-    std.debug.assert(ui.currentLayout().* == .flex_strip);
+pub fn getOriginalBounds(ui: *DebugUI, id: u32) Bounds {
+    const layout_bounds = ui.currentLayout().flex_strip.bounds;
 
     var state = ui.getState(id);
 
-    std.debug.assert(!state.is_undefined);
-
-    if (ui.active_element_id != id) return;
-
-    ui.active_element.scroll.elapsed += ui.delta_time;
-    const lamba = @log(0.001) / DECAY_TIME;
-    const decay = @exp(lamba * ui.active_element.scroll.elapsed);
-
-    ui.active_element.scroll.velocity += ui.scroll_y * ui.delta_time * 45;
-    ui.active_element.scroll.velocity *= decay;
-
-    const overflow = FlexStrip.GAP - ui.currentLayout().flex_strip.exhausted_space + if (ui.currentLayout().flex_strip.direction == .Column) ui.currentLayout().flex_strip.bounds.height else ui.currentLayout().flex_strip.bounds.width;
-
-    if (overflow - ui.active_element.scroll.velocity * 25 > state.retained.state.scroll.scroll_pos) {
-        ui.active_element.scroll.velocity = 0;
-        state.retained.state.scroll.scroll_pos = overflow;
+    if (state.is_undefined) {
+        state.retained.state.scroll.scroll_pos = 0;
     }
 
-    if (0 - ui.active_element.scroll.velocity * 25 < state.retained.state.scroll.scroll_pos) {
-        ui.active_element.scroll.velocity = 0;
-        state.retained.state.scroll.scroll_pos = 0;
+    const bounds = Bounds{
+        .x = layout_bounds.x - if (ui.currentLayout().flex_strip.direction == .Column) 0 else state.retained.state.scroll.scroll_pos,
+        .y = layout_bounds.y - if (ui.currentLayout().flex_strip.direction == .Row) 0 else state.retained.state.scroll.scroll_pos,
+        .width = layout_bounds.width,
+        .height = layout_bounds.height,
+    };
+
+    return bounds;
+}
+
+pub fn end(ui: *DebugUI, mode: Mode, id: u32) void {
+    std.debug.assert(ui.currentLayout().* == .flex_strip);
+
+    const bounds = getOriginalBounds(ui, id);
+    const events = ui.getEvents(&bounds);
+    const within = bounds.clip(&ui.scroll_bounds).equals(&bounds);
+
+    if (ui.scroll_y != 0 and events.mouse_over and within) {
+        ui.active_element_id = id;
+        ui.active_element = Element{
+            .scroll = Scroll{
+                .velocity = updateVelocity(0, ui.delta_time, ui.scroll_y, mode),
+                .elapsed = 0,
+            },
+        };
+        ui.scroll_bounds = bounds;
+    }
+
+    if (ui.active_element_id == id) {
+        ui.active_element.scroll.velocity = updateVelocity(ui.active_element.scroll.velocity, ui.delta_time, ui.scroll_y, mode);
+        ui.active_element.scroll.elapsed += ui.delta_time;
+
+        if (ui.scroll_y != 0) {
+            ui.active_element.scroll.elapsed = 0;
+        } else if (ui.active_element.scroll.elapsed > DECAY) {
+            ui.active_element_id = 0;
+            ui.scroll_bounds = Bounds.max_bounds();
+        }
+
+        var state = ui.getState(id);
+        state.retained.state.scroll.scroll_pos += ui.active_element.scroll.velocity;
+
+        const old = state.retained.state.scroll.scroll_pos;
+        const space_exhausted = ui.currentLayout().flex_strip.exhausted_space;
+
+        state.retained.state.scroll.scroll_pos = std.math.clamp(state.retained.state.scroll.scroll_pos, -space_exhausted + FlexStrip.GAP + if (ui.currentLayout().flex_strip.direction == .Row) bounds.width else bounds.height, 0);
+
+        if (state.retained.state.scroll.scroll_pos != old) {
+            ui.active_element.scroll.velocity = 0;
+        }
     }
 }

@@ -5,6 +5,8 @@ const Extents = @import("utils.zig").Extents;
 
 const DebugUI = @This();
 
+const std = @import("std");
+
 pub const FlexStrip = @import("layouts/FlexStrip.zig");
 pub const Frame = @import("layouts/Frame.zig");
 pub const Grid = @import("layouts/Grid.zig");
@@ -14,7 +16,7 @@ pub const Scroll = @import("elements/Scroll.zig");
 pub const ScrollState = Scroll.State;
 
 pub const ElementLayout = union(enum) { flex_strip: FlexStrip, grid: Grid, frame: Frame };
-pub const Element = union { button: Button, slider: Slider, scroll: Scroll };
+pub const Element = union(enum) { button: Button, slider: Slider, scroll: Scroll };
 pub const RetainedState = struct {
     id: u32,
     state: union {
@@ -28,10 +30,14 @@ const MAX_STATES = 128;
 
 active_element: Element,
 active_element_id: u32,
+
 layout_stack: [MAX_LAYOUTS]ElementLayout,
 layout_stack_position: u32,
+
 retained_state: [MAX_STATES]RetainedState,
 retained_state_count: u32,
+
+scroll_bounds: Bounds,
 
 mouse_down: bool,
 mouse_x: f32,
@@ -54,7 +60,8 @@ pub const Events = packed struct {
     mouse_down: bool,
     mouse_up: bool,
     mouse_held: bool,
-    _padding: u2,
+    mouse_moved: bool,
+    _padding: u1,
 };
 
 pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: *RetainedState } {
@@ -123,6 +130,7 @@ pub fn getEvents(self: *const DebugUI, bounds: *const Bounds) Events {
         .mouse_down = self.mouse_down and !self.last_mouse_down,
         .mouse_up = !self.mouse_down and self.last_mouse_down,
         .mouse_held = self.mouse_down,
+        .mouse_moved = self.mouse_x != self.last_mouse_x or self.mouse_y != self.last_mouse_y,
     };
 }
 
@@ -143,6 +151,7 @@ pub fn init() DebugUI {
         .scroll_x = 0,
         .scroll_y = 0,
         .delta_time = 1.0 / 60.0,
+        .scroll_bounds = Bounds.max_bounds(),
         .primatives = Primatives{
             .rectangle_count = 0,
             .rectangles = undefined,
