@@ -28,7 +28,7 @@ sans24: *c.TTF_Font,
 sans18: *c.TTF_Font,
 sans12: *c.TTF_Font,
 
-pub fn create() !SDL2Backend {
+pub fn create(width: f32, height: f32) !SDL2Backend {
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
         return error.SDLInitFailed;
     }
@@ -38,7 +38,7 @@ pub fn create() !SDL2Backend {
     const sans18 = c.TTF_OpenFont("assets/Sans.ttf", 18) orelse return error.FontLoadFailed;
     const sans12 = c.TTF_OpenFont("assets/Sans.ttf", 12) orelse return error.FontLoadFailed;
 
-    const window = c.SDL_CreateWindow("wowza", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, 800, 800, 0);
+    const window = c.SDL_CreateWindow("wowza", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, @intFromFloat(width), @intFromFloat(height), 0);
     const renderer: *c.SDL_Renderer = c.SDL_CreateRenderer(window, -1, c.SDL_RENDERER_SOFTWARE) orelse return error.SDLInitFailed;
 
     return SDL2Backend{ .renderer = renderer, .sans24 = sans24, .sans18 = sans18, .sans12 = sans12 };
@@ -311,63 +311,23 @@ pub fn renderRectangles(self: *const SDL2Backend, rectangles: []const Primatives
 pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void {
     if (c.SDL_RenderClear(self.renderer) == -1) return error.SDLDrawFailed;
 
-    if (primatives.clip_count == 0) {
-        try self.renderRectangles(primatives.rectangles[0..primatives.rectangle_count]);
-        try self.renderText(primatives.text[0..primatives.text_count]);
-
-        c.SDL_RenderPresent(self.renderer);
-        return;
-    }
-
-    try self.renderRectangles(primatives.rectangles[0..primatives.clip_stack[0].rectangle_count]);
-    try self.renderText(primatives.text[0..primatives.clip_stack[0].text_count]);
-
-    var clip_count: usize = 0;
-
-    var active_clip_index_stack: [64]usize = undefined;
-    var active_clip_index_stack_size: usize = 0;
-
     var i: usize = 0;
-    while (i < primatives.clip_stack_size - 1) : (i += 1) {
-        const current_clip = primatives.clip_stack[i];
-        const next_clip = primatives.clip_stack[i + 1];
+    while (i < primatives.clip_count) : (i += 1) {
+        const rectangle_start = primatives.clips[i].rectangles_start;
+        const rectangle_end = primatives.clips[i].rectangles_end;
+        const text_start = primatives.clips[i].text_start;
+        const text_end = primatives.clips[i].text_end;
 
-        if (current_clip.type == .Begin) {
-            active_clip_index_stack[active_clip_index_stack_size] = clip_count;
-            active_clip_index_stack_size += 1;
-        } else {
-            active_clip_index_stack_size -= 1;
-        }
+        _ = c.SDL_RenderSetClipRect(self.renderer, &c.SDL_Rect{
+            .x = @intFromFloat(primatives.clips[i].bounds.x),
+            .y = @intFromFloat(primatives.clips[i].bounds.y),
+            .w = @intFromFloat(primatives.clips[i].bounds.width),
+            .h = @intFromFloat(primatives.clips[i].bounds.height),
+        });
 
-        if (next_clip.type == .Begin) {
-            clip_count += 1;
-        }
-
-        if (active_clip_index_stack_size == 0) {
-            _ = c.SDL_RenderSetClipRect(self.renderer, null);
-        } else {
-            _ = c.SDL_RenderSetClipRect(self.renderer, null);
-            const rect = c.SDL_Rect{
-                .x = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].x),
-                .y = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].y),
-                .w = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].width),
-                .h = @intFromFloat(primatives.clips[active_clip_index_stack[active_clip_index_stack_size - 1]].height),
-            };
-
-            _ = c.SDL_RenderSetClipRect(self.renderer, &rect);
-        }
-
-        try self.renderRectangles(primatives.rectangles[current_clip.rectangle_count..next_clip.rectangle_count]);
-        try self.renderText(primatives.text[current_clip.text_count..next_clip.text_count]);
+        try self.renderRectangles(primatives.rectangles[rectangle_start..rectangle_end]);
+        try self.renderText(primatives.text[text_start..text_end]);
     }
-
-    const last_rectangle = primatives.clip_stack[primatives.clip_stack_size - 1].rectangle_count;
-    const last_text = primatives.clip_stack[primatives.clip_stack_size - 1].text_count;
-
-    _ = c.SDL_RenderSetClipRect(self.renderer, null);
-
-    try self.renderRectangles(primatives.rectangles[last_rectangle..primatives.rectangle_count]);
-    try self.renderText(primatives.text[last_text..primatives.text_count]);
 
     c.SDL_RenderPresent(self.renderer);
 }

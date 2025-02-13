@@ -17,43 +17,69 @@ string_count: usize,
 text: [MAX_TEXT]TextBlock,
 text_count: usize,
 
-clips: [MAX_CLIPS]Bounds,
+prev_clips: [MAX_CLIPS / 2]Bounds,
+prev_clip_count: usize,
+
+clips: [MAX_CLIPS]Clip,
 clip_count: usize,
 
-clip_stack: [MAX_CLIPS / 4]ClipStackOrder,
-clip_stack_size: usize,
+finished_clip: bool,
 
 pub inline fn start_clip(self: *Primatives, x: f32, y: f32, width: f32, height: f32) void {
-    self.clips[self.clip_count] = Bounds{
+    if (!self.finished_clip) {
+        self.clips[self.clip_count - 1].rectangles_end = self.rectangle_count;
+        self.clips[self.clip_count - 1].text_end = self.text_count;
+    } else if (self.prev_clip_count > 0) {
+        const new_bounds = self.prev_clips[self.prev_clip_count - 1];
+
+        self.clips[self.clip_count].bounds = new_bounds;
+        self.clips[self.clip_count].rectangles_start = self.clips[self.clip_count - 1].rectangles_end;
+        self.clips[self.clip_count].text_start = self.clips[self.clip_count - 1].text_end;
+        self.clips[self.clip_count].rectangles_end = self.rectangle_count;
+        self.clips[self.clip_count].text_end = self.text_count;
+        self.clip_count += 1;
+    }
+
+    const new_bounds = Bounds{
         .x = x,
         .y = y,
         .width = width,
         .height = height,
     };
 
-    if (self.clip_stack_size != 0) {
-        self.clips[self.clip_count] = self.clips[self.clip_count].clip(&self.clips[self.clip_count - 1]);
+    if (self.prev_clip_count > 0) {
+        const clipped_bounds = new_bounds.clip(&self.prev_clips[self.prev_clip_count - 1]);
+        self.clips[self.clip_count].bounds = clipped_bounds;
+        self.prev_clips[self.prev_clip_count] = clipped_bounds;
+    } else {
+        self.clips[self.clip_count].bounds = new_bounds;
+        self.prev_clips[0] = new_bounds;
     }
 
+    self.prev_clip_count += 1;
+    self.clips[self.clip_count].rectangles_start = self.rectangle_count;
+    self.clips[self.clip_count].text_start = self.text_count;
     self.clip_count += 1;
 
-    self.clip_stack[self.clip_stack_size] = ClipStackOrder{
-        .type = .Begin,
-        .rectangle_count = @intCast(self.rectangle_count),
-        .text_count = @intCast(self.text_count),
-    };
-
-    self.clip_stack_size += 1;
+    self.finished_clip = false;
 }
 
 pub inline fn end_clip(self: *Primatives) void {
-    self.clip_stack[self.clip_stack_size] = ClipStackOrder{
-        .type = .End,
-        .rectangle_count = @intCast(self.rectangle_count),
-        .text_count = @intCast(self.text_count),
-    };
+    std.debug.assert(self.prev_clip_count > 0);
 
-    self.clip_stack_size += 1;
+    if (self.finished_clip) {
+        const new_bounds = self.prev_clips[self.prev_clip_count - 1];
+
+        self.clips[self.clip_count].bounds = new_bounds;
+        self.clips[self.clip_count].rectangles_start = self.clips[self.clip_count - 1].rectangles_end;
+        self.clips[self.clip_count].text_start = self.clips[self.clip_count - 1].text_end;
+        self.clip_count += 1;
+    }
+
+    self.clips[self.clip_count - 1].rectangles_end = self.rectangle_count;
+    self.clips[self.clip_count - 1].text_end = self.text_count;
+    self.prev_clip_count -= 1;
+    self.finished_clip = true;
 }
 
 pub inline fn clear(self: *Primatives) void {
@@ -61,7 +87,6 @@ pub inline fn clear(self: *Primatives) void {
     self.text_count = 0;
     self.string_count = 0;
     self.clip_count = 0;
-    self.clip_stack_size = 0;
 }
 
 pub inline fn addRectangle(self: *Primatives, rectangle: Rectangle) void {
@@ -136,8 +161,10 @@ pub const TextBlock = struct {
     text: []const u8,
 };
 
-pub const ClipStackOrder = packed struct {
-    type: enum { Begin, End },
-    rectangle_count: u31,
-    text_count: u32,
+pub const Clip = struct {
+    bounds: Bounds,
+    text_start: usize,
+    text_end: usize,
+    rectangles_start: usize,
+    rectangles_end: usize,
 };

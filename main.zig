@@ -50,12 +50,16 @@ const App = struct {
     debug_ui: DebugUI,
     test_gui_handles: TestGUIHandles,
     show_middle_row: bool,
+    window_size: [2]f32,
 
     pub fn create() !App {
         var app: App = undefined;
 
+        app.window_size[0] = 800;
+        app.window_size[1] = 800;
+
         app.debug_ui = DebugUI.init();
-        app.sdl2_backend = try SDL2Backend.create();
+        app.sdl2_backend = try SDL2Backend.create(app.window_size[0], app.window_size[1]);
 
         app.test_gui_handles.hello_button = MeaninglessText{
             .text = "Hello, World!",
@@ -77,21 +81,21 @@ const App = struct {
 
     fn ui(self: *App) void {
         {
-            //Frame.start(&self.debug_ui, 20, 630);
-            //FlexStrip.start(&self.debug_ui, Extents{
-            //    .width = 700,
-            //    .height = 50,
-            //}, FlexStrip.Direction.Row, true);
-            //Scroll.start(&self.debug_ui, 123203);
+            Frame.start(&self.debug_ui, 20, 630);
+            FlexStrip.start(&self.debug_ui, Extents{
+                .width = 700,
+                .height = 50,
+            }, FlexStrip.Direction.Row, true);
+            Scroll.start(&self.debug_ui, 12333203);
 
-            //_ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
-            //_ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
-            //Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
-            //_ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
+            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
 
-            //Scroll.end(&self.debug_ui, 123203);
-            //FlexStrip.end(&self.debug_ui);
-            //Frame.end(&self.debug_ui);
+            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 12333203);
+            FlexStrip.end(&self.debug_ui);
+            Frame.end(&self.debug_ui);
         }
 
         {
@@ -118,6 +122,22 @@ const App = struct {
             }
 
             if (self.show_middle_row) {
+                Grid.position(&self.debug_ui, 0, 2, 2, 1);
+
+                FlexStrip.start(&self.debug_ui, Extents{
+                    .width = 700,
+                    .height = 50,
+                }, FlexStrip.Direction.Row, false);
+                Scroll.start(&self.debug_ui, 123203);
+
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
+                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
+
+                Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 123203);
+                FlexStrip.end(&self.debug_ui);
+
                 Grid.position(&self.debug_ui, 0, 1, 2, 1);
                 Grid.start(&self.debug_ui, Extents{
                     .width = 100,
@@ -134,22 +154,6 @@ const App = struct {
                 _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3241);
 
                 Grid.end(&self.debug_ui);
-
-                Grid.position(&self.debug_ui, 0, 2, 2, 1);
-
-                FlexStrip.start(&self.debug_ui, Extents{
-                    .width = 700,
-                    .height = 50,
-                }, FlexStrip.Direction.Row, false);
-                Scroll.start(&self.debug_ui, 123203);
-
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
-                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
-
-                Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 123203);
-                FlexStrip.end(&self.debug_ui);
             } else {
                 Grid.position(&self.debug_ui, 0, 1, 2, 1);
                 Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value, "Wowza", 1234);
@@ -175,7 +179,9 @@ const App = struct {
         self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.scroll_x, events.scroll_y, events.flags.mouse_down, 1.0 / 60.0);
         self.debug_ui.primatives.clear();
 
+        self.debug_ui.primatives.start_clip(0, 0, self.window_size[0], self.window_size[1]);
         self.ui();
+        self.debug_ui.primatives.end_clip();
 
         try self.sdl2_backend.renderSDL2(&self.debug_ui.primatives);
 

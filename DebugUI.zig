@@ -13,10 +13,11 @@ pub const Grid = @import("layouts/Grid.zig");
 pub const Slider = @import("elements/Slider.zig");
 pub const Button = @import("elements/Button.zig");
 pub const Scroll = @import("elements/Scroll.zig");
+pub const TextInput = @import("elements/TextInput.zig");
 pub const ScrollState = Scroll.State;
 
 pub const ElementLayout = union(enum) { flex_strip: FlexStrip, grid: Grid, frame: Frame };
-pub const Element = union(enum) { button: Button, slider: Slider, scroll: Scroll };
+pub const Element = union(enum) { button: Button, slider: Slider, scroll: Scroll, text_input: TextInput };
 pub const RetainedState = struct {
     id: u32,
     state: union {
@@ -159,10 +160,11 @@ pub fn init() DebugUI {
             .text = undefined,
             .string_buffer = undefined,
             .string_count = 0,
+            .prev_clips = undefined,
+            .prev_clip_count = 0,
             .clips = undefined,
             .clip_count = 0,
-            .clip_stack = undefined,
-            .clip_stack_size = 0,
+            .finished_clip = true,
         },
     };
 }
