@@ -112,7 +112,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: [*]u8, text_size: *u32,
     const text_block = Primatives.TextBlock{
         .x = PADDING + bounds.x,
         .y = bounds.y + @divExact(remaining_vertical_space, 2),
-        .width = bounds.width - PADDING * 2,
+        .width = 10000,
         .text = text[0..text_size.*],
         .color = Primatives.Color.white(),
         .text_align = Primatives.TextAlign.Left,
@@ -138,7 +138,10 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: [*]u8, text_size: *u32,
 
     ui.primatives.addRectangle(border);
     ui.primatives.addRectangle(base);
+
+    ui.primatives.start_clip(base.x, base.y, base.width, base.height);
     ui.primatives.addText(text_block);
+    ui.primatives.end_clip();
 
     const local_events = ui.getEvents(&bounds);
 
@@ -151,6 +154,21 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: [*]u8, text_size: *u32,
 
     if (local_events.mouse_down and local_events.mouse_over) {
         ui.active_element.text_input.selected = true;
+
+        var i: usize = 0;
+
+        while (ui.active_element.text_input.gap_start != 0) {
+            ui.active_element.text_input.gap_buffer_left();
+        }
+
+        while (i < text_size.*) : (i += 1) {
+            const current = font_backend.getLineWidth(0, text[0..i]);
+            const next = font_backend.getLineWidth(0, text[0 .. i + 1]);
+
+            if (current + @divTrunc(next - current, 2) + PADDING + bounds.x < ui.mouse_x) {
+                ui.active_element.text_input.gap_buffer_right();
+            } else break;
+        }
     }
 
     if (local_events.hover_exit) {
@@ -214,17 +232,17 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: [*]u8, text_size: *u32,
             if (key.value == .SCANCODE_9) ui.active_element.text_input.gap_buffer_insert(if (caps) '(' else '9');
             if (key.value == .SCANCODE_0) ui.active_element.text_input.gap_buffer_insert(if (caps) ')' else '0');
 
-            if (key.value == .SCANCODE_LEFTBRACKET) ui.active_element.text_input.gap_buffer_insert(if (caps) '[' else '{');
-            if (key.value == .SCANCODE_RIGHTBRACKET) ui.active_element.text_input.gap_buffer_insert(if (caps) ']' else '}');
+            if (key.value == .SCANCODE_LEFTBRACKET) ui.active_element.text_input.gap_buffer_insert(if (!caps) '[' else '{');
+            if (key.value == .SCANCODE_RIGHTBRACKET) ui.active_element.text_input.gap_buffer_insert(if (!caps) ']' else '}');
 
-            if (key.value == .SCANCODE_BACKSLASH) ui.active_element.text_input.gap_buffer_insert(if (caps) '\\' else '|');
-            if (key.value == .SCANCODE_SLASH) ui.active_element.text_input.gap_buffer_insert(if (caps) '/' else '?');
-            if (key.value == .SCANCODE_SEMICOLON) ui.active_element.text_input.gap_buffer_insert(if (caps) ';' else ':');
-            if (key.value == .SCANCODE_APOSTROPHE) ui.active_element.text_input.gap_buffer_insert(if (caps) '\'' else '"');
-            if (key.value == .SCANCODE_MINUS) ui.active_element.text_input.gap_buffer_insert(if (caps) '-' else '_');
-            if (key.value == .SCANCODE_EQUALS) ui.active_element.text_input.gap_buffer_insert(if (caps) '=' else '+');
-            if (key.value == .SCANCODE_PERIOD) ui.active_element.text_input.gap_buffer_insert(if (caps) '.' else '>');
-            if (key.value == .SCANCODE_COMMA) ui.active_element.text_input.gap_buffer_insert(if (caps) ',' else '<');
+            if (key.value == .SCANCODE_BACKSLASH) ui.active_element.text_input.gap_buffer_insert(if (!caps) '\\' else '|');
+            if (key.value == .SCANCODE_SLASH) ui.active_element.text_input.gap_buffer_insert(if (!caps) '/' else '?');
+            if (key.value == .SCANCODE_SEMICOLON) ui.active_element.text_input.gap_buffer_insert(if (!caps) ';' else ':');
+            if (key.value == .SCANCODE_APOSTROPHE) ui.active_element.text_input.gap_buffer_insert(if (!caps) '\'' else '"');
+            if (key.value == .SCANCODE_MINUS) ui.active_element.text_input.gap_buffer_insert(if (!caps) '-' else '_');
+            if (key.value == .SCANCODE_EQUALS) ui.active_element.text_input.gap_buffer_insert(if (!caps) '=' else '+');
+            if (key.value == .SCANCODE_PERIOD) ui.active_element.text_input.gap_buffer_insert(if (!caps) '.' else '>');
+            if (key.value == .SCANCODE_COMMA) ui.active_element.text_input.gap_buffer_insert(if (!caps) ',' else '<');
         }
     }
 
