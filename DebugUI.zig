@@ -1,7 +1,10 @@
 const Primatives = @import("Primatives.zig");
 
-const Bounds = @import("utils.zig").Bounds;
-const Extents = @import("utils.zig").Extents;
+const utils = @import("utils.zig");
+
+const Bounds = utils.Bounds;
+const Extents = utils.Extents;
+const Key = utils.Key;
 
 const DebugUI = @This();
 
@@ -54,6 +57,8 @@ delta_time: f32,
 
 primatives: Primatives,
 
+keys: []const Key,
+
 pub const Events = packed struct {
     mouse_over: bool,
     hover_enter: bool,
@@ -87,7 +92,9 @@ pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: 
     };
 }
 
-pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, scroll_x: f32, scroll_y: f32, mouse_down: bool, delta_time: f32) void {
+pub inline fn newFrame(self: *DebugUI, mouse_x: f32, mouse_y: f32, scroll_x: f32, scroll_y: f32, mouse_down: bool, delta_time: f32, keys: []const Key) void {
+    self.keys = keys;
+
     self.delta_time = delta_time;
 
     self.last_mouse_down = self.mouse_down;
@@ -153,6 +160,7 @@ pub fn init() DebugUI {
         .scroll_y = 0,
         .delta_time = 1.0 / 60.0,
         .scroll_bounds = Bounds.max_bounds(),
+        .keys = &[0]Key{},
         .primatives = Primatives{
             .rectangle_count = 0,
             .rectangles = undefined,

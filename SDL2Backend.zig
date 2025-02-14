@@ -6,6 +6,7 @@ const std = @import("std");
 
 const DebugUI = @import("DebugUI.zig");
 const Primatives = @import("Primatives.zig");
+const Key = @import("utils.zig").Key;
 
 const SDL2Backend = @This();
 
@@ -21,6 +22,8 @@ pub const InputEventInfo = struct {
     mouse_y: f32,
     scroll_x: f32,
     scroll_y: f32,
+    input_keys: [8]Key,
+    input_keys_count: u32,
 };
 
 renderer: *c.SDL_Renderer,
@@ -55,6 +58,8 @@ pub fn getEvents() InputEventInfo {
         .mouse_y = 0,
         .scroll_x = 0,
         .scroll_y = 0,
+        .input_keys = undefined,
+        .input_keys_count = 0,
     };
 
     var event: c.SDL_Event = undefined;
@@ -70,6 +75,22 @@ pub fn getEvents() InputEventInfo {
             c.SDL_MOUSEWHEEL => {
                 global_events.scroll_x += @floatFromInt(event.wheel.x);
                 global_events.scroll_y += @floatFromInt(event.wheel.y);
+            },
+            c.SDL_KEYUP => {
+                const value: u16 = @as(u16, @intCast(event.key.keysym.scancode));
+                global_events.input_keys[global_events.input_keys_count] = .{
+                    .pressType = .UP,
+                    .value = @enumFromInt(value),
+                };
+                global_events.input_keys_count += 1;
+            },
+            c.SDL_KEYDOWN => {
+                const value: u16 = @as(u16, @intCast(event.key.keysym.scancode));
+                global_events.input_keys[global_events.input_keys_count] = .{
+                    .pressType = .DOWN,
+                    .value = @enumFromInt(value),
+                };
+                global_events.input_keys_count += 1;
             },
             else => {},
         }
@@ -92,7 +113,12 @@ pub fn getEvents() InputEventInfo {
 
 pub fn getLineWidth(self: *const SDL2Backend, font_id: u32, text: []const u8) f32 {
     var width: i32 = undefined;
-    if (c.TTF_SizeUTF8(self.getFont(font_id), @ptrCast(text), &width, null) == -1) return 0.0;
+
+    var buffer: [256]u8 = undefined;
+    @memcpy(buffer[0..text.len], text);
+    buffer[text.len] = 0;
+
+    if (c.TTF_SizeUTF8(self.getFont(font_id), @ptrCast(&buffer), &width, null) == -1) return 0.0;
     return @floatFromInt(width);
 }
 
@@ -137,7 +163,7 @@ pub fn getRequiredLinesToFitWords(self: *const SDL2Backend, font_id: u32, width:
             @ptrCast(&count),
         ) == -1) return 0;
 
-        while (current_count + count != text.len and text[current_count + count] != ' ') {
+        while (current_count + count < text.len and text[current_count + count] != ' ') {
             count -= 1;
         }
 
@@ -148,11 +174,52 @@ pub fn getRequiredLinesToFitWords(self: *const SDL2Backend, font_id: u32, width:
     return lines;
 }
 
+pub fn getCharacterOffsetWordWrap(self: *const SDL2Backend, font_id: u32, width: f32, text: []const u8) struct { x: f32, y: f32 } {
+    var count: u32 = 0;
+    var current_count: u32 = 0;
+    var lines: u32 = 0;
+
+    while (current_count < text.len) {
+        if (c.TTF_MeasureUTF8(
+            self.getFont(font_id),
+            @ptrCast(text[current_count..]),
+            @as(i32, @intFromFloat(width)) + 1,
+            null,
+            @ptrCast(&count),
+        ) == -1) return .{ .x = 0, .y = 0 };
+
+        while (current_count + count < text.len and text[current_count + count] != ' ') {
+            count -= 1;
+        }
+
+        current_count += count + 1;
+        lines += 1;
+    }
+
+    var buffer: [256]u8 = undefined;
+    const length = text.len - (current_count - count - 1);
+    var extent: i32 = undefined;
+
+    @memcpy(buffer[0..length], text[current_count - count - 1 .. text.len]);
+    buffer[length] = '\x00';
+
+    if (c.TTF_MeasureUTF8(
+        self.getFont(font_id),
+        @ptrCast(&buffer),
+        @as(i32, @intFromFloat(width)) + 1,
+        &extent,
+        @ptrCast(&count),
+    ) == -1) return .{ .x = 0, .y = 0 };
+
+    return .{ .x = @floatFromInt(extent), .y = @as(f32, @floatFromInt(lines)) * self.getLineHeight(font_id) };
+}
+
 fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBlock) !void {
     var i: usize = 0;
 
-    while (i < text_blocks.len) {
+    while (i < text_blocks.len) : (i += 1) {
         const text_block = text_blocks[i];
+
         var lines: u32 = 0;
         var current_count: u32 = 0;
         var text: [256]u8 = undefined;
@@ -232,8 +299,6 @@ fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBloc
             c.SDL_FreeSurface(surface);
             c.SDL_DestroyTexture(output_texture);
         }
-
-        i += 1;
     }
 }
 

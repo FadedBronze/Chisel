@@ -32,6 +32,7 @@ pub const Frame = @import("layouts/Frame.zig");
 pub const Grid = @import("layouts/Grid.zig");
 pub const Slider = @import("elements/Slider.zig");
 pub const Button = @import("elements/Button.zig");
+pub const TextInput = @import("elements/TextInput.zig");
 
 const MeaninglessText = struct {
     text: []const u8,
@@ -41,6 +42,8 @@ const MeaninglessText = struct {
 const TestGUIHandles = struct {
     hello_button: MeaninglessText,
     hello_button2: MeaninglessText,
+    edit_text: [256]u8,
+    edit_text_len: u32,
     slider_value: f32,
     slider_value2: f32,
 };
@@ -71,6 +74,10 @@ const App = struct {
             .more_text = "This is the world!",
         };
 
+        const text = "hi";
+        @memcpy(app.test_gui_handles.edit_text[0..text.len], text);
+        app.test_gui_handles.edit_text_len = text.len;
+
         app.show_middle_row = false;
 
         app.test_gui_handles.slider_value = 5.0;
@@ -88,9 +95,9 @@ const App = struct {
             }, FlexStrip.Direction.Row, true);
             Scroll.start(&self.debug_ui, 12333203);
 
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3223413);
             _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
-            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
+            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 3242322);
             _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
 
             Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 12333203);
@@ -114,7 +121,7 @@ const App = struct {
             }, 2, 6);
 
             Grid.position(&self.debug_ui, 0, 0, 1, 1);
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3290);
+            TextInput.create(&self.debug_ui, self.sdl2_backend, &self.test_gui_handles.edit_text, &self.test_gui_handles.edit_text_len, 3290);
 
             Grid.position(&self.debug_ui, 1, 0, 1, 1);
             if (Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button2.text, self.test_gui_handles.hello_button2.more_text, 3294)) {
@@ -176,7 +183,15 @@ const App = struct {
             return error.Quit;
         }
 
-        self.debug_ui.newFrame(events.mouse_x, events.mouse_y, events.scroll_x, events.scroll_y, events.flags.mouse_down, 1.0 / 60.0);
+        self.debug_ui.newFrame(
+            events.mouse_x,
+            events.mouse_y,
+            events.scroll_x,
+            events.scroll_y,
+            events.flags.mouse_down,
+            1.0 / 60.0,
+            events.input_keys[0..events.input_keys_count],
+        );
         self.debug_ui.primatives.clear();
 
         self.debug_ui.primatives.start_clip(0, 0, self.window_size[0], self.window_size[1]);
