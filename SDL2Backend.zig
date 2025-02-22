@@ -394,5 +394,8 @@ pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void
         try self.renderText(primatives.text[text_start..text_end]);
     }
 
+    try self.renderRectangles(primatives.rectangles[primatives.defer_rectangles_offset..Primatives.MAX_RECTANGLES]);
+    try self.renderText(primatives.text[primatives.defer_text_offset..Primatives.MAX_TEXT]);
+
     c.SDL_RenderPresent(self.renderer);
 }

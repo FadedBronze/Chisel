@@ -109,7 +109,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, _: ?[]const
 
     if (ui.active_element.button.hover_duration > 1.0) {
         ui.active_element.button.hover_duration = @min(ui.active_element.button.hover_duration, 15.0);
-        ui.primatives.addRectangle(tooltip_base);
+        ui.primatives.deferAddRectangle(tooltip_base);
     }
 
     if (local_events.hover_exit) {

@@ -177,18 +177,6 @@ pub fn init() DebugUI {
         .delta_time = 1.0 / 60.0,
         .scroll_bounds = Bounds.max_bounds(),
         .keys = &[0]Key{},
-        .primatives = Primatives{
-            .rectangle_count = 0,
-            .rectangles = undefined,
-            .text_count = 0,
-            .text = undefined,
-            .string_buffer = undefined,
-            .string_count = 0,
-            .prev_clips = undefined,
-            .prev_clip_count = 0,
-            .clips = undefined,
-            .clip_count = 0,
-            .finished_clip = true,
-        },
+        .primatives = Primatives.init(),
     };
 }
