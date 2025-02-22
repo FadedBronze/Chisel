@@ -11,6 +11,7 @@ const Dropdown = @This();
 const PADDING = 8;
 const GAP = 0;
 const DROPDOWN_GAP = 8;
+const DROPDOWN_TOOLTIP_WIDTH = 300;
 const BORDER = 1;
 
 open: bool,
@@ -128,8 +129,10 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
         const font_height = font_backend.getLineHeight(0);
         var total_height: f32 = bounds.y + bounds.height + BORDER + DROPDOWN_GAP;
 
-        for (create_info.options, create_info.tooltips, 0..) |option, _, i| {
+        for (create_info.options, create_info.tooltips, 0..) |option, tooltip, i| {
+            const tooltip_lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, DROPDOWN_TOOLTIP_WIDTH - PADDING * 2, tooltip));
             const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, bounds.width - PADDING * 2, option));
+
             const height: f32 = font_height * lines + PADDING * 2;
             const y = total_height;
             total_height += height + GAP;
@@ -156,10 +159,29 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
                     Primatives.Color.gray(50),
             };
 
+            const dropdown_tooltip = Primatives.Rectangle{
+                .x = dropdown_bounds.x + bounds.width,
+                .y = dropdown_bounds.y,
+                .width = DROPDOWN_TOOLTIP_WIDTH,
+                .height = tooltip_lines * font_height + PADDING * 2,
+                .color = Primatives.Color.gray(50),
+            };
+
+            const dropdown_text_tooltip = Primatives.TextBlock{
+                .x = PADDING + bounds.x + bounds.width,
+                .y = PADDING + total_height - height,
+                .width = DROPDOWN_TOOLTIP_WIDTH - PADDING * 2,
+                .text = tooltip,
+                .color = Primatives.Color.white(),
+                .text_align = Primatives.TextAlign.Left,
+                .text_break = Primatives.TextBreak.Word,
+                .font_id = 0,
+            };
+
             const dropdown_text_block = Primatives.TextBlock{
                 .x = PADDING + bounds.x,
                 .y = PADDING + total_height - height,
-                .width = bounds.width,
+                .width = DROPDOWN_TOOLTIP_WIDTH,
                 .text = option,
                 .color = Primatives.Color.white(),
                 .text_align = Primatives.TextAlign.Left,
@@ -174,6 +196,11 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
 
             ui.primatives.deferAddText(dropdown_text_block);
             ui.primatives.deferAddRectangle(dropdown_base);
+
+            if (dropdown_events.mouse_over) {
+                ui.primatives.deferAddText(dropdown_text_tooltip);
+                ui.primatives.deferAddRectangle(dropdown_tooltip);
+            }
         }
 
         const dropdown_border = Primatives.Rectangle{

@@ -41,7 +41,10 @@ pub fn getCellBounds(self: *Grid) Bounds {
 pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void {
     std.debug.assert(switch (ui.layout_stack[ui.layout_stack_position - 1]) {
         .grid => true,
-        else => false,
+        else => |thing| thing: {
+            std.debug.print(".{}\n", .{thing});
+            break :thing false;
+        },
     });
 
     var grid = &ui.layout_stack[ui.layout_stack_position - 1].grid;

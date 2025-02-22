@@ -62,6 +62,13 @@ const SomeObject = struct {
     position_y: f32,
     size: f32,
     name: [32:0]u8,
+    state: enum(u32) {
+        Flying,
+        Swimming,
+        Eating,
+        Walking,
+        Running,
+    },
 };
 
 pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: anytype, x: f32, y: f32, width: f32, height: f32) void {
@@ -78,11 +85,21 @@ pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: an
     switch (info) {
         .Struct => |s| {
             inline for (s.fields) |field| {
+                Grid.start(ui, Extents{ .height = 60, .width = width }, 2, 1);
+
                 const field_info = @typeInfo(field.type);
-                var id: [64]u8 = undefined;
+                var id: [field.name.len + name.len + 2]u8 = undefined;
                 @memcpy(id[0..name.len], name);
                 @memcpy(id[name.len .. name.len + field.name.len], field.name);
+                id[name.len + field.name.len] = 'L';
+                id[name.len + field.name.len + 1] = 0;
+
+                Grid.position(ui, 0, 0, 1, 1);
+                _ = Button.create(ui, font_backend, field.name, null, @ptrCast(&id));
+
                 id[name.len + field.name.len] = 0;
+
+                Grid.position(ui, 1, 0, 1, 1);
 
                 switch (field_info) {
                     .Float => {
@@ -111,8 +128,28 @@ pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: an
                             field_ref[text_size] = 0;
                         }
                     },
+                    .Enum => |e| {
+                        //if ()
+                        const names = names: {
+                            var names: [e.fields.len][]const u8 = undefined;
+
+                            inline for (e.fields, 0..) |enum_field, i| {
+                                names[i] = enum_field.name;
+                            }
+
+                            break :names names;
+                        };
+
+                        Dropdown.create(ui, font_backend, Dropdown.CreateInfo{
+                            .selected = @as(*u32, @ptrCast(&@field(object, field.name))),
+                            .options = &names,
+                            .tooltips = &names,
+                        }, @ptrCast(&id));
+                    },
                     else => {},
                 }
+
+                Grid.end(ui);
             }
         },
         else => {},
@@ -133,8 +170,8 @@ const App = struct {
     pub fn create() !App {
         var app: App = undefined;
 
-        app.window_size[0] = 800;
-        app.window_size[1] = 800;
+        app.window_size[0] = 1200;
+        app.window_size[1] = 900;
 
         app.debug_ui = DebugUI.init();
         app.sdl2_backend = try SDL2Backend.create(app.window_size[0], app.window_size[1]);
@@ -155,6 +192,7 @@ const App = struct {
             .name = ("SomeObject" ++ "\x00" ** 22).*,
             .position_x = 0,
             .position_y = 0,
+            .state = .Walking,
             .size = 0,
         };
 
@@ -171,7 +209,7 @@ const App = struct {
     }
 
     fn ui(self: *App) void {
-        generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 500, 20, 200, 200);
+        generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 425, 20, 450, 200);
 
         {
             Frame.start(&self.debug_ui, 20, 630);
@@ -251,7 +289,7 @@ const App = struct {
                 _ = Dropdown.create(&self.debug_ui, self.sdl2_backend, Dropdown.CreateInfo{
                     .selected = &self.test_gui_handles.selected,
                     .options = &[_][]const u8{ "food", "drinks" },
-                    .tooltips = &[_][]const u8{ "food", "drinks" },
+                    .tooltips = &[_][]const u8{ "food is a superpower it makes you not hungry", "drinks are great cuz water yk?" },
                 }, "122");
 
                 Grid.position(&self.debug_ui, 1, 0, 1, 1);
