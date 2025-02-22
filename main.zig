@@ -26,13 +26,16 @@ const DebugUI = @import("DebugUI.zig");
 
 const Extents = @import("utils.zig").Extents;
 
-pub const FlexStrip = @import("layouts/FlexStrip.zig");
-pub const Scroll = @import("elements/Scroll.zig");
-pub const Frame = @import("layouts/Frame.zig");
-pub const Grid = @import("layouts/Grid.zig");
-pub const Slider = @import("elements/Slider.zig");
-pub const Button = @import("elements/Button.zig");
-pub const TextInput = @import("elements/TextInput.zig");
+const FlexStrip = @import("layouts/FlexStrip.zig");
+const Scroll = @import("elements/Scroll.zig");
+const Frame = @import("layouts/Frame.zig");
+const Grid = @import("layouts/Grid.zig");
+const Slider = @import("elements/Slider.zig");
+const Dropdown = @import("elements/Dropdown.zig");
+const Button = @import("elements/Button.zig");
+const TextInput = @import("elements/TextInput.zig");
+const InputCreateInfo = TextInput.InputCreateInfo;
+const Element = DebugUI.Element;
 
 const MeaninglessText = struct {
     text: []const u8,
@@ -46,7 +49,78 @@ const TestGUIHandles = struct {
     edit_text_len: u32,
     slider_value: f32,
     slider_value2: f32,
+    some_object: SomeObject,
 };
+
+const GUISchema = struct {
+    elements: []Element,
+};
+
+const SomeObject = struct {
+    position_x: f32,
+    position_y: f32,
+    size: f32,
+    name: [32:0]u8,
+};
+
+pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: anytype, x: f32, y: f32, width: f32, height: f32) void {
+    const info = @typeInfo(T);
+    const name = @typeName(T);
+
+    Frame.start(ui, x, y);
+    FlexStrip.start(ui, Extents{
+        .width = width,
+        .height = height,
+    }, FlexStrip.Direction.Column, true);
+    Scroll.start(ui, "12203");
+
+    switch (info) {
+        .Struct => |s| {
+            inline for (s.fields) |field| {
+                const field_info = @typeInfo(field.type);
+                var id: [64]u8 = undefined;
+                @memcpy(id[0..name.len], name);
+                @memcpy(id[name.len .. name.len + field.name.len], field.name);
+                id[name.len + field.name.len] = 0;
+
+                switch (field_info) {
+                    .Float => {
+                        TextInput.create(ui, font_backend, InputCreateInfo{
+                            .number = .{
+                                .start = 0.0,
+                                .value = &@field(object, field.name),
+                                .end = 100.0,
+                            },
+                        }, @ptrCast(&id));
+                    },
+                    .Array => |a| {
+                        const array_type = @typeInfo(a.child);
+
+                        if (array_type == .Int and a.sentinel != null and @as(*const u8, @ptrCast(a.sentinel)).* == 0 and array_type.Int.bits == 8 and array_type.Int.signedness == .unsigned) {
+                            const field_ref = &@field(object, field.name);
+                            var text_size: u32 = @intCast(std.mem.span(@as([*:0]const u8, @ptrCast(field_ref))).len);
+
+                            TextInput.create(ui, font_backend, InputCreateInfo{
+                                .character = .{
+                                    .text = field_ref,
+                                    .text_size = &text_size,
+                                },
+                            }, @ptrCast(&id));
+
+                            field_ref[text_size] = 0;
+                        }
+                    },
+                    else => {},
+                }
+            }
+        },
+        else => {},
+    }
+
+    Scroll.end(ui, Scroll.Mode.Smooth, "12203");
+    FlexStrip.end(ui);
+    Frame.end(ui);
+}
 
 const App = struct {
     sdl2_backend: SDL2Backend,
@@ -74,6 +148,13 @@ const App = struct {
             .more_text = "This is the world!",
         };
 
+        app.test_gui_handles.some_object = SomeObject{
+            .name = ("SomeObject" ++ "\x00" ** 22).*,
+            .position_x = 0,
+            .position_y = 0,
+            .size = 0,
+        };
+
         const text = "hi";
         @memcpy(app.test_gui_handles.edit_text[0..text.len], text);
         app.test_gui_handles.edit_text_len = text.len;
@@ -87,20 +168,22 @@ const App = struct {
     }
 
     fn ui(self: *App) void {
+        generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 500, 20, 200, 200);
+
         {
             Frame.start(&self.debug_ui, 20, 630);
             FlexStrip.start(&self.debug_ui, Extents{
                 .width = 700,
                 .height = 50,
             }, FlexStrip.Direction.Row, true);
-            Scroll.start(&self.debug_ui, 12333203);
+            Scroll.start(&self.debug_ui, "12333203");
 
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3223413);
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
-            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 3242322);
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3223413");
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3324241");
+            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", "3242322");
+            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3232441");
 
-            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 12333203);
+            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, "12333203");
             FlexStrip.end(&self.debug_ui);
             Frame.end(&self.debug_ui);
         }
@@ -113,7 +196,7 @@ const App = struct {
                 .height = 500,
             }, FlexStrip.Direction.Column, true);
 
-            Scroll.start(&self.debug_ui, 1203);
+            Scroll.start(&self.debug_ui, "1203");
 
             Grid.start(&self.debug_ui, Extents{
                 .width = 400,
@@ -121,10 +204,15 @@ const App = struct {
             }, 2, 6);
 
             Grid.position(&self.debug_ui, 0, 0, 1, 1);
-            TextInput.create(&self.debug_ui, self.sdl2_backend, &self.test_gui_handles.edit_text, &self.test_gui_handles.edit_text_len, 3290);
+            TextInput.create(&self.debug_ui, self.sdl2_backend, InputCreateInfo{
+                .character = .{
+                    .text = &self.test_gui_handles.edit_text,
+                    .text_size = &self.test_gui_handles.edit_text_len,
+                },
+            }, "3290");
 
             Grid.position(&self.debug_ui, 1, 0, 1, 1);
-            if (Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button2.text, self.test_gui_handles.hello_button2.more_text, 3294)) {
+            if (Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button2.text, self.test_gui_handles.hello_button2.more_text, "3294")) {
                 self.show_middle_row = !self.show_middle_row;
             }
 
@@ -135,14 +223,18 @@ const App = struct {
                     .width = 700,
                     .height = 50,
                 }, FlexStrip.Direction.Row, false);
-                Scroll.start(&self.debug_ui, 123203);
+                Scroll.start(&self.debug_ui, "123203");
 
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 322341);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3324241);
-                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 324222);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3232441);
+                TextInput.create(&self.debug_ui, self.sdl2_backend, InputCreateInfo{ .number = .{
+                    .value = &self.test_gui_handles.slider_value2,
+                    .start = 5,
+                    .end = 20,
+                } }, "322341");
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3324241");
+                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", "324222");
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3232441");
 
-                Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 123203);
+                Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, "123203");
                 FlexStrip.end(&self.debug_ui);
 
                 Grid.position(&self.debug_ui, 0, 1, 2, 1);
@@ -152,25 +244,31 @@ const App = struct {
                 }, 3, 1);
 
                 Grid.position(&self.debug_ui, 0, 0, 1, 1);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 122);
+                var selected: u32 = 0;
+
+                _ = Dropdown.create(&self.debug_ui, self.sdl2_backend, Dropdown.CreateInfo{
+                    .selected = &selected,
+                    .options = &[_][]const u8{ "food", "drinks" },
+                    .tooltips = &[_][]const u8{ "food", "drinks" },
+                }, "122");
 
                 Grid.position(&self.debug_ui, 1, 0, 1, 1);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 32324);
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "32324");
 
                 Grid.position(&self.debug_ui, 2, 0, 1, 1);
-                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, 3241);
+                _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3241");
 
                 Grid.end(&self.debug_ui);
             } else {
                 Grid.position(&self.debug_ui, 0, 1, 2, 1);
-                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value, "Wowza", 1234);
+                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value, "Wowza", "1234");
 
                 Grid.position(&self.debug_ui, 0, 2, 2, 1);
-                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", 4321);
+                Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", "4321");
             }
 
             Grid.end(&self.debug_ui);
-            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, 1203);
+            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, "1203");
             FlexStrip.end(&self.debug_ui);
             Frame.end(&self.debug_ui);
         }

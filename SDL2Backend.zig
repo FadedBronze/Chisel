@@ -255,7 +255,7 @@ fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBloc
 
             var extent: i32 = 0;
 
-            if (c.TTF_MeasureText(
+            if (c.TTF_MeasureUTF8(
                 self.getFont(text_block.font_id),
                 @ptrCast(text[current_count..]),
                 @as(i32, @intFromFloat(text_block.width)) + 1,
@@ -263,7 +263,7 @@ fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBloc
                 null,
             ) == -1) return error.MeasureFailed;
 
-            const surface: *c.SDL_Surface = c.TTF_RenderText_Solid(
+            const surface: *c.SDL_Surface = c.TTF_RenderUTF8_Solid(
                 self.getFont(text_block.font_id),
                 @ptrCast(text[current_count..]),
                 @bitCast(text_block.color),

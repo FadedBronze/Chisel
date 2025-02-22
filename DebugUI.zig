@@ -17,12 +17,13 @@ pub const Slider = @import("elements/Slider.zig");
 pub const Button = @import("elements/Button.zig");
 pub const Scroll = @import("elements/Scroll.zig");
 pub const TextInput = @import("elements/TextInput.zig");
+pub const Dropdown = @import("elements/Dropdown.zig");
 pub const ScrollState = Scroll.State;
 
 pub const ElementLayout = union(enum) { flex_strip: FlexStrip, grid: Grid, frame: Frame };
-pub const Element = union(enum) { button: Button, slider: Slider, scroll: Scroll, text_input: TextInput };
+pub const Element = union(enum) { button: Button, slider: Slider, scroll: Scroll, text_input: TextInput, dropdown: Dropdown };
 pub const RetainedState = struct {
-    id: u32,
+    id: [64:0]u8,
     state: union {
         scroll: ScrollState,
     },
@@ -33,7 +34,7 @@ const MAX_ELEMENTS = 2048;
 const MAX_STATES = 128;
 
 active_element: Element,
-active_element_id: u32,
+active_element_id: [64:0]u8,
 
 layout_stack: [MAX_LAYOUTS]ElementLayout,
 layout_stack_position: u32,
@@ -70,10 +71,10 @@ pub const Events = packed struct {
     _padding: u1,
 };
 
-pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: *RetainedState } {
+pub fn getState(self: *DebugUI, id: [*:0]const u8) struct { is_undefined: bool, retained: *RetainedState } {
     var i: usize = 0;
     while (i < self.retained_state_count) : (i += 1) {
-        if (self.retained_state[i].id == id) return .{
+        if (std.mem.orderZ(u8, id, &self.retained_state[i].id).compare(.eq)) return .{
             .is_undefined = false,
             .retained = &self.retained_state[i],
         };
@@ -81,10 +82,14 @@ pub fn getState(self: *DebugUI, id: u32) struct { is_undefined: bool, retained: 
 
     self.retained_state_count += 1;
 
-    self.retained_state[self.retained_state_count - 1] = RetainedState{
-        .id = id,
+    var state = RetainedState{
+        .id = undefined,
         .state = undefined,
     };
+
+    @memcpy(state.id[0..std.mem.span(id).len], id);
+
+    self.retained_state[self.retained_state_count - 1] = state;
 
     return .{
         .is_undefined = true,
@@ -142,10 +147,21 @@ pub fn getEvents(self: *const DebugUI, bounds: *const Bounds) Events {
     };
 }
 
+pub inline fn compareId(ui: *const DebugUI, id: [*:0]const u8) bool {
+    return std.mem.orderZ(u8, id, &ui.active_element_id).compare(.eq);
+}
+
+pub inline fn setId(ui: *DebugUI, id: [*:0]const u8) void {
+    return @memcpy(ui.active_element_id[0 .. std.mem.span(id).len + 1], id);
+}
+
 pub fn init() DebugUI {
+    var active_element_id: [64:0]u8 = undefined;
+    active_element_id[0] = 0;
+
     return DebugUI{
         .active_element = undefined,
-        .active_element_id = 0,
+        .active_element_id = active_element_id,
         .last_mouse_down = false,
         .layout_stack = undefined,
         .layout_stack_position = 0,

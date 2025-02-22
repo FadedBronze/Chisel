@@ -18,7 +18,7 @@ const GAP = 2;
 
 holding_knob: bool,
 
-pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f32, label: []const u8, id: u32) void {
+pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f32, label: []const u8, id: [*:0]const u8) void {
     const font_height = font_backend.getLineHeight(2);
     const actual_height = font_height + GAP + HEIGHT;
 
@@ -116,14 +116,14 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
 
     const events = ui.getEvents(&bounds);
 
-    if (events.mouse_over and ui.active_element_id == 0) {
+    if (events.mouse_over and ui.active_element_id[0] == 0) {
         ui.active_element = Element{ .slider = Slider{
             .holding_knob = false,
         } };
-        ui.active_element_id = id;
+        ui.setId(id);
     }
 
-    if (ui.active_element_id != id) return;
+    if (!ui.compareId(id)) return;
 
     const mouse_pos = @max(@min((ui.mouse_x - (HEIGHT / 2) - bounds.x) / (bounds.width - HEIGHT), 1.0), 0.0);
 
@@ -148,6 +148,6 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
     }
 
     if (!ui.active_element.slider.holding_knob and !events.mouse_over) {
-        ui.active_element_id = 0;
+        ui.active_element_id[0] = 0;
     }
 }

@@ -29,7 +29,7 @@ inline fn updateVelocity(velocity: f32, delta_time: f32, scroll_y: f32, mode: Mo
     } else unreachable;
 }
 
-pub fn start(ui: *DebugUI, id: u32) void {
+pub fn start(ui: *DebugUI, id: [*:0]const u8) void {
     std.debug.assert(ui.currentLayout().* == .flex_strip);
 
     const state = ui.getState(id);
@@ -43,7 +43,7 @@ pub fn start(ui: *DebugUI, id: u32) void {
     }
 }
 
-pub fn getOriginalBounds(ui: *DebugUI, id: u32) Bounds {
+pub fn getOriginalBounds(ui: *DebugUI, id: [*:0]const u8) Bounds {
     const layout_bounds = ui.currentLayout().flex_strip.bounds;
 
     var state = ui.getState(id);
@@ -62,7 +62,7 @@ pub fn getOriginalBounds(ui: *DebugUI, id: u32) Bounds {
     return bounds;
 }
 
-pub fn end(ui: *DebugUI, mode: Mode, id: u32) void {
+pub fn end(ui: *DebugUI, mode: Mode, id: [*:0]const u8) void {
     std.debug.assert(ui.currentLayout().* == .flex_strip);
 
     const bounds = getOriginalBounds(ui, id);
@@ -70,7 +70,7 @@ pub fn end(ui: *DebugUI, mode: Mode, id: u32) void {
     const within = bounds.clip(&ui.scroll_bounds).equals(&bounds);
 
     if (ui.scroll_y != 0 and events.mouse_over and within) {
-        ui.active_element_id = id;
+        ui.setId(id);
         ui.active_element = Element{
             .scroll = Scroll{
                 .velocity = updateVelocity(0, ui.delta_time, ui.scroll_y, mode),
@@ -80,14 +80,14 @@ pub fn end(ui: *DebugUI, mode: Mode, id: u32) void {
         ui.scroll_bounds = bounds;
     }
 
-    if (ui.active_element_id == id) {
+    if (ui.compareId(id)) {
         ui.active_element.scroll.velocity = updateVelocity(ui.active_element.scroll.velocity, ui.delta_time, ui.scroll_y, mode);
         ui.active_element.scroll.elapsed += ui.delta_time;
 
         if (ui.scroll_y != 0) {
             ui.active_element.scroll.elapsed = 0;
         } else if (ui.active_element.scroll.elapsed > DECAY) {
-            ui.active_element_id = 0;
+            ui.active_element_id[0] = 0;
             ui.scroll_bounds = Bounds.max_bounds();
         }
 
@@ -97,7 +97,11 @@ pub fn end(ui: *DebugUI, mode: Mode, id: u32) void {
         const old = state.retained.state.scroll.scroll_pos;
         const space_exhausted = ui.currentLayout().flex_strip.exhausted_space;
 
-        state.retained.state.scroll.scroll_pos = std.math.clamp(state.retained.state.scroll.scroll_pos, -space_exhausted + FlexStrip.GAP + if (ui.currentLayout().flex_strip.direction == .Row) bounds.width else bounds.height, 0);
+        state.retained.state.scroll.scroll_pos = std.math.clamp(
+            state.retained.state.scroll.scroll_pos,
+            -space_exhausted + FlexStrip.GAP + if (ui.currentLayout().flex_strip.direction == .Row) bounds.width else bounds.height,
+            0,
+        );
 
         if (state.retained.state.scroll.scroll_pos != old) {
             ui.active_element.scroll.velocity = 0;
