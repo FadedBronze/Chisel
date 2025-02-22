@@ -24,7 +24,9 @@ const std = @import("std");
 const SDL2Backend = @import("SDL2Backend.zig");
 const DebugUI = @import("DebugUI.zig");
 
-const Extents = @import("utils.zig").Extents;
+const utils = @import("utils.zig");
+const Extents = utils.Extents;
+const InputEventInfo = utils.InputEventInfo;
 
 const FlexStrip = @import("layouts/FlexStrip.zig");
 const Scroll = @import("elements/Scroll.zig");
@@ -208,7 +210,12 @@ const App = struct {
         return app;
     }
 
-    fn ui(self: *App) void {
+    fn ui(self: *App, events: *const InputEventInfo) void {
+        DebugUI.start(&self.debug_ui, Extents{
+            .width = self.window_size[0],
+            .height = self.window_size[1],
+        }, events);
+
         generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 425, 20, 450, 200);
 
         {
@@ -312,33 +319,18 @@ const App = struct {
             FlexStrip.end(&self.debug_ui);
             Frame.end(&self.debug_ui);
         }
+
+        DebugUI.end(&self.debug_ui, self.sdl2_backend) catch unreachable;
     }
 
     pub fn run(self: *App) !void {
-        const events = SDL2Backend.getEvents();
+        const events = self.sdl2_backend.getEvents();
 
         if (events.flags.quit) {
             return error.Quit;
         }
 
-        self.debug_ui.newFrame(
-            events.mouse_x,
-            events.mouse_y,
-            events.scroll_x,
-            events.scroll_y,
-            events.flags.mouse_down,
-            1.0 / 60.0,
-            events.input_keys[0..events.input_keys_count],
-        );
-        self.debug_ui.primatives.clear();
-
-        self.debug_ui.primatives.start_clip(0, 0, self.window_size[0], self.window_size[1]);
-        self.ui();
-        self.debug_ui.primatives.end_clip();
-
-        try self.sdl2_backend.renderSDL2(&self.debug_ui.primatives);
-
-        c.SDL_Delay(@divTrunc(1000, 60));
+        self.ui(&events);
     }
 };
 

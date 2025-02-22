@@ -3,6 +3,22 @@ const Rectangle = @import("Primatives.zig").Rectangle;
 const Color = @import("Primatives.zig").Color;
 const std = @import("std");
 
+pub const InputEventFlags = packed struct {
+    mouse_down: bool,
+    quit: bool,
+    _padding: u5,
+};
+
+pub const InputEventInfo = struct {
+    flags: InputEventFlags,
+    mouse_x: f32,
+    mouse_y: f32,
+    scroll_x: f32,
+    scroll_y: f32,
+    input_keys: [8]Key,
+    input_keys_count: u32,
+};
+
 pub const Scancode = enum(u16) {
     SCANCODE_UNKNOWN = 0,
     SCANCODE_A = 4,

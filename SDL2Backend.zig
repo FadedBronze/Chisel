@@ -6,25 +6,9 @@ const std = @import("std");
 
 const DebugUI = @import("DebugUI.zig");
 const Primatives = @import("Primatives.zig");
-const Key = @import("utils.zig").Key;
+const InputEventInfo = @import("utils.zig").InputEventInfo;
 
 const SDL2Backend = @This();
-
-pub const InputEventFlags = packed struct {
-    mouse_down: bool,
-    quit: bool,
-    _padding: u5,
-};
-
-pub const InputEventInfo = struct {
-    flags: InputEventFlags,
-    mouse_x: f32,
-    mouse_y: f32,
-    scroll_x: f32,
-    scroll_y: f32,
-    input_keys: [8]Key,
-    input_keys_count: u32,
-};
 
 renderer: *c.SDL_Renderer,
 sans24: *c.TTF_Font,
@@ -47,7 +31,7 @@ pub fn create(width: f32, height: f32) !SDL2Backend {
     return SDL2Backend{ .renderer = renderer, .sans24 = sans24, .sans18 = sans18, .sans12 = sans12 };
 }
 
-pub fn getEvents() InputEventInfo {
+pub fn getEvents(_: *SDL2Backend) InputEventInfo {
     var global_events: InputEventInfo = InputEventInfo{
         .flags = .{
             ._padding = 0,

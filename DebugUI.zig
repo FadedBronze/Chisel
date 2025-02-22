@@ -5,6 +5,7 @@ const utils = @import("utils.zig");
 const Bounds = utils.Bounds;
 const Extents = utils.Extents;
 const Key = utils.Key;
+const InputEventInfo = utils.InputEventInfo;
 
 const DebugUI = @This();
 
@@ -153,6 +154,26 @@ pub inline fn compareId(ui: *const DebugUI, id: [*:0]const u8) bool {
 
 pub inline fn setId(ui: *DebugUI, id: [*:0]const u8) void {
     return @memcpy(ui.active_element_id[0 .. std.mem.span(id).len + 1], id);
+}
+
+pub fn start(ui: *DebugUI, window_size: Extents, events: *const InputEventInfo) void {
+    ui.newFrame(
+        events.mouse_x,
+        events.mouse_y,
+        events.scroll_x,
+        events.scroll_y,
+        events.flags.mouse_down,
+        1.0 / 60.0,
+        events.input_keys[0..events.input_keys_count],
+    );
+    ui.primatives.clear();
+
+    ui.primatives.start_clip(0, 0, window_size.width, window_size.height);
+}
+
+pub fn end(ui: *DebugUI, backend: anytype) !void {
+    ui.primatives.end_clip();
+    try backend.renderSDL2(&ui.primatives);
 }
 
 pub fn init() DebugUI {
