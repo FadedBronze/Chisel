@@ -43,6 +43,7 @@ const MeaninglessText = struct {
 };
 
 const TestGUIHandles = struct {
+    selected: u32,
     hello_button: MeaninglessText,
     hello_button2: MeaninglessText,
     edit_text: [256]u8,
@@ -137,6 +138,8 @@ const App = struct {
 
         app.debug_ui = DebugUI.init();
         app.sdl2_backend = try SDL2Backend.create(app.window_size[0], app.window_size[1]);
+
+        app.test_gui_handles.selected = 0;
 
         app.test_gui_handles.hello_button = MeaninglessText{
             .text = "Hello, World!",
@@ -244,10 +247,9 @@ const App = struct {
                 }, 3, 1);
 
                 Grid.position(&self.debug_ui, 0, 0, 1, 1);
-                var selected: u32 = 0;
 
                 _ = Dropdown.create(&self.debug_ui, self.sdl2_backend, Dropdown.CreateInfo{
-                    .selected = &selected,
+                    .selected = &self.test_gui_handles.selected,
                     .options = &[_][]const u8{ "food", "drinks" },
                     .tooltips = &[_][]const u8{ "food", "drinks" },
                 }, "122");

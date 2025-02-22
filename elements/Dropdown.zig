@@ -9,6 +9,9 @@ const Element = DebugUI.Element;
 const Dropdown = @This();
 
 const PADDING = 8;
+const GAP = 0;
+const DROPDOWN_GAP = 8;
+const BORDER = 1;
 
 open: bool,
 
@@ -84,14 +87,23 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
         .font_id = 0,
     };
 
-    const base = Primatives.Rectangle{
+    const border = Primatives.Rectangle{
         .x = bounds.x,
         .y = bounds.y,
         .width = bounds.width,
         .height = bounds.height,
-        .color = Primatives.Color.gray(100),
+        .color = Primatives.Color.gray(122),
     };
 
+    const base = Primatives.Rectangle{
+        .x = bounds.x + BORDER,
+        .y = bounds.y + BORDER,
+        .width = bounds.width - BORDER * 2,
+        .height = bounds.height - BORDER * 2,
+        .color = Primatives.Color.gray(50),
+    };
+
+    ui.primatives.addRectangle(border);
     ui.primatives.addRectangle(base);
     ui.primatives.addText(text_block);
 
@@ -105,22 +117,85 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
     if (!ui.compareId(id)) return;
 
     const hover = Primatives.Rectangle{
-        .x = bounds.x,
-        .y = bounds.y,
-        .width = bounds.width,
-        .height = bounds.height,
-        .color = Primatives.Color.gray(122),
+        .x = bounds.x + BORDER,
+        .y = bounds.y + BORDER,
+        .width = bounds.width - BORDER * 2,
+        .height = bounds.height - BORDER * 2,
+        .color = Primatives.Color.gray(70),
     };
+
+    if (ui.active_element.dropdown.open) {
+        const font_height = font_backend.getLineHeight(0);
+        var total_height: f32 = bounds.y + bounds.height + BORDER + DROPDOWN_GAP;
+
+        for (create_info.options, create_info.tooltips, 0..) |option, _, i| {
+            const lines: f32 = @floatFromInt(font_backend.getRequiredLinesToFitWords(0, bounds.width - PADDING * 2, option));
+            const height: f32 = font_height * lines + PADDING * 2;
+            const y = total_height;
+            total_height += height + GAP;
+
+            const dropdown_bounds = .{
+                .x = bounds.x + BORDER,
+                .y = y,
+                .width = bounds.width - BORDER * 2,
+                .height = height,
+            };
+
+            const dropdown_events = ui.getEvents(&dropdown_bounds);
+
+            const dropdown_base = Primatives.Rectangle{
+                .x = dropdown_bounds.x,
+                .y = dropdown_bounds.y,
+                .width = dropdown_bounds.width,
+                .height = dropdown_bounds.height,
+                .color = if (dropdown_events.mouse_over)
+                    Primatives.Color.gray(70)
+                else if (i == create_info.selected.*)
+                    Primatives.Color.gray(60)
+                else
+                    Primatives.Color.gray(50),
+            };
+
+            const dropdown_text_block = Primatives.TextBlock{
+                .x = PADDING + bounds.x,
+                .y = PADDING + total_height - height,
+                .width = bounds.width,
+                .text = option,
+                .color = Primatives.Color.white(),
+                .text_align = Primatives.TextAlign.Left,
+                .text_break = Primatives.TextBreak.Word,
+                .font_id = 0,
+            };
+
+            if (dropdown_events.mouse_down and dropdown_events.mouse_over) {
+                create_info.selected.* = @intCast(i);
+                ui.active_element.dropdown.open = false;
+            }
+
+            ui.primatives.deferAddText(dropdown_text_block);
+            ui.primatives.deferAddRectangle(dropdown_base);
+        }
+
+        const dropdown_border = Primatives.Rectangle{
+            .x = bounds.x,
+            .y = bounds.y + bounds.height + DROPDOWN_GAP,
+            .width = bounds.width,
+            .height = total_height - (bounds.y + bounds.height + DROPDOWN_GAP + GAP) + BORDER,
+            .color = Primatives.Color.gray(122),
+        };
+
+        ui.primatives.deferAddRectangle(dropdown_border);
+    }
 
     if (local_events.mouse_down and local_events.mouse_over) {
         ui.active_element.dropdown.open = !ui.active_element.dropdown.open;
     }
 
-    if (local_events.mouse_held and local_events.mouse_over) {
+    if (local_events.mouse_over) {
         ui.primatives.addRectangle(hover);
     }
 
-    if (local_events.hover_exit) {
+    if (local_events.hover_exit and !ui.active_element.dropdown.open) {
         ui.active_element_id[0] = 0;
     }
 }
