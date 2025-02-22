@@ -85,7 +85,7 @@ pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: an
     switch (info) {
         .Struct => |s| {
             inline for (s.fields) |field| {
-                Grid.start(ui, Extents{ .height = 60, .width = width }, 2, 1);
+                Grid.start(ui, Extents{ .height = 60, .width = width }, 3, 1);
 
                 const field_info = @typeInfo(field.type);
                 var id: [field.name.len + name.len + 2]u8 = undefined;
@@ -99,7 +99,7 @@ pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: an
 
                 id[name.len + field.name.len] = 0;
 
-                Grid.position(ui, 1, 0, 1, 1);
+                Grid.position(ui, 1, 0, 2, 1);
 
                 switch (field_info) {
                     .Float => {

@@ -17,12 +17,11 @@ const MAX_GRID_SIZE = 64;
 
 const GridPositioning = packed struct { row: u8, col: u8, row_span: u8, col_span: u8 };
 
-rows: u8,
 cols: u8,
+rows: u8,
 
 positioning: GridPositioning,
 bounds: Bounds,
-filled_cells: [MAX_GRID_SIZE][MAX_GRID_SIZE / 8]u8,
 
 pub fn getCellBounds(self: *Grid) Bounds {
     const x_cell_size = @divExact(self.bounds.width - PADDING * @as(f32, @floatFromInt(self.rows - 1)), @as(f32, @floatFromInt(self.rows)));
@@ -52,16 +51,6 @@ pub fn position(ui: *DebugUI, row: u8, col: u8, row_span: u8, col_span: u8) void
     std.debug.assert(row < grid.rows and row >= 0 and col < grid.cols and col >= 0);
     std.debug.assert(row_span + row <= grid.rows);
     std.debug.assert(col_span + col <= grid.cols);
-
-    var i: usize = row;
-    while (i < row_span) : (i += 1) {
-        var j: usize = col;
-        while (j < col_span) : (j += 1) {
-            const mask = @as(u8, 1) << @intCast(i % 8);
-            std.debug.assert(grid.filled_cells[j][@divTrunc(i, 8)] & mask == 0);
-            grid.filled_cells[j][@divTrunc(i, 8)] ^= mask;
-        }
-    }
 
     grid.positioning = GridPositioning{
         .col = col,
@@ -112,7 +101,6 @@ pub fn start(ui: *DebugUI, bounds: Extents, rows: u8, cols: u8) void {
         .grid = Grid{
             .rows = rows,
             .cols = cols,
-            .filled_cells = grid,
             .positioning = .{
                 .row_span = 0,
                 .col_span = 0,
