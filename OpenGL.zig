@@ -283,15 +283,23 @@ pub const Backend = struct {
         self.opengl.index_count = 0;
         self.opengl.indices = undefined;
 
-        for (primatives.rectangles[0..primatives.rectangle_count]) |rectangle| {
-            const bounds = Bounds{
-                .height = rectangle.height,
-                .width = rectangle.width,
-                .x = rectangle.x,
-                .y = rectangle.y,
-            };
+        var i: usize = 0;
+        while (i < primatives.clip_count) : (i += 1) {
+            const rectangle_start = primatives.clips[i].rectangles_start;
+            const rectangle_end = primatives.clips[i].rectangles_end;
+            //const text_start = primatives.clips[i].text_start;
+            //const text_end = primatives.clips[i].text_end;
 
-            self.renderQuad(&bounds, rectangle.color);
+            for (primatives.rectangles[rectangle_start..rectangle_end]) |rectangle| {
+                const bounds = (&Bounds{
+                    .height = rectangle.height,
+                    .width = rectangle.width,
+                    .x = rectangle.x,
+                    .y = rectangle.y,
+                }).clip(&primatives.clips[i].bounds);
+
+                self.renderQuad(&bounds, rectangle.color);
+            }
         }
 
         for (primatives.rectangles[primatives.defer_rectangles_offset..primatives.rectangles.len]) |rectangle| {

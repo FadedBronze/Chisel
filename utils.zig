@@ -282,12 +282,34 @@ pub const Bounds = struct {
     width: f32,
 
     pub fn clip(self: *const Bounds, outer: *const Bounds) Bounds {
-        return Bounds{
-            .x = @max(outer.x, self.x),
-            .y = @max(outer.y, self.y),
-            .width = @min(outer.x + outer.width, self.x + self.width) - @max(outer.x, self.x),
-            .height = @min(outer.y + outer.height, self.y + self.height) - @max(outer.y, self.y),
-        };
+        var clipped = self.*;
+
+        if (clipped.x < outer.x) {
+            clipped.width -= (outer.x - clipped.x);
+            clipped.x = outer.x;
+        }
+
+        const self_right = clipped.x + clipped.width;
+        const outer_right = outer.x + outer.width;
+        if (self_right > outer_right) {
+            clipped.width -= (self_right - outer_right);
+        }
+
+        if (clipped.y < outer.y) {
+            clipped.height -= (outer.y - clipped.y);
+            clipped.y = outer.y;
+        }
+
+        const self_bottom = clipped.y + clipped.height;
+        const outer_bottom = outer.y + outer.height;
+        if (self_bottom > outer_bottom) {
+            clipped.height -= (self_bottom - outer_bottom);
+        }
+
+        clipped.width = @max(clipped.width, 0);
+        clipped.height = @max(clipped.height, 0);
+
+        return clipped;
     }
 
     pub fn equals(self: *const Bounds, other: *const Bounds) bool {
