@@ -15,6 +15,9 @@ const OpenGL = @This();
 
 window: *c.GLFWwindow,
 screen_size: Extents,
+mouse_position: [2]f32,
+scroll_offset: [2]f32,
+mouse_down: bool,
 
 vertices: union {
     ui: [2048]Backend.Vertex,
@@ -23,6 +26,24 @@ vertex_count: u32,
 
 indices: [4096]u32,
 index_count: u32,
+
+pub fn cursorPositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    const opengl: *OpenGL = @alignCast(@ptrCast(c.glfwGetWindowUserPointer(window)));
+    opengl.mouse_position = [2]f32{ @floatCast(xpos), @floatCast(ypos) };
+}
+
+pub fn mouseButtonCallback(window: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
+    const opengl: *OpenGL = @alignCast(@ptrCast(c.glfwGetWindowUserPointer(window)));
+
+    if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
+        opengl.mouse_down = action == c.GLFW_PRESS;
+    }
+}
+
+pub fn scrollCallback(window: ?*c.GLFWwindow, xoffset: f64, yoffset: f64) callconv(.C) void {
+    const opengl: *OpenGL = @alignCast(@ptrCast(c.glfwGetWindowUserPointer(window)));
+    opengl.scroll_offset = [2]f32{ @floatCast(xoffset), @floatCast(yoffset) };
+}
 
 pub fn frameBufferSizeCallback(window: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     c.glViewport(0, 0, width, height);
@@ -67,7 +88,13 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
 
     c.glfwSetWindowUserPointer(window, self);
 
+    _ = c.glfwSetMouseButtonCallback(window, mouseButtonCallback);
+
+    _ = c.glfwSetCursorPosCallback(window, cursorPositionCallback);
+
     _ = c.glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
+
+    _ = c.glfwSetScrollCallback(window, scrollCallback);
 
     const err: c.GLenum = c.glewInit();
 
@@ -79,12 +106,17 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     c.glEnable(c.GL_DEBUG_OUTPUT);
     c.__glewDebugMessageCallback.?(debugCallback, null);
 
-    self.vertices = undefined;
-    self.vertex_count = 0;
-    self.indices = undefined;
-    self.screen_size = Extents{ .height = height, .width = width };
-    self.index_count = 0;
-    self.window = window.?;
+    self.* = OpenGL{
+        .vertices = undefined,
+        .vertex_count = 0,
+        .indices = undefined,
+        .screen_size = Extents{ .height = height, .width = width },
+        .index_count = 0,
+        .window = window.?,
+        .mouse_down = false,
+        .mouse_position = .{ 0, 0 },
+        .scroll_offset = .{ 0, 0 },
+    };
 }
 
 pub fn destroy(_: *OpenGL) void {
@@ -200,27 +232,35 @@ pub const Backend = struct {
         \\}
     ;
 
+    inline fn translateNDC(self: *Backend, vertex: Vertex) Vertex {
+        return Vertex{
+            .x = ((vertex.x / self.opengl.screen_size.width) * 2) - 1,
+            .y = ((vertex.y / -self.opengl.screen_size.height) * 2) + 1,
+            .color = vertex.color,
+        };
+    }
+
     pub fn renderQuad(self: *Backend, bounds: *const Bounds, color: Primatives.Color) void {
-        self.opengl.vertices.ui[self.opengl.vertex_count] = Vertex{
-            .x = bounds.x / self.opengl.screen_size.width,
-            .y = bounds.y / self.opengl.screen_size.height,
+        self.opengl.vertices.ui[self.opengl.vertex_count] = self.translateNDC(Vertex{
+            .x = bounds.x,
+            .y = bounds.y,
             .color = color,
-        };
-        self.opengl.vertices.ui[self.opengl.vertex_count + 1] = Vertex{
-            .x = (bounds.x + bounds.width) / self.opengl.screen_size.width,
-            .y = bounds.y / self.opengl.screen_size.height,
+        });
+        self.opengl.vertices.ui[self.opengl.vertex_count + 1] = self.translateNDC(Vertex{
+            .x = (bounds.x + bounds.width),
+            .y = bounds.y,
             .color = color,
-        };
-        self.opengl.vertices.ui[self.opengl.vertex_count + 2] = Vertex{
-            .x = (bounds.x + bounds.width) / self.opengl.screen_size.width,
-            .y = (bounds.y + bounds.height) / self.opengl.screen_size.height,
+        });
+        self.opengl.vertices.ui[self.opengl.vertex_count + 2] = self.translateNDC(Vertex{
+            .x = bounds.x + bounds.width,
+            .y = bounds.y + bounds.height,
             .color = color,
-        };
-        self.opengl.vertices.ui[self.opengl.vertex_count + 3] = Vertex{
-            .x = bounds.x / self.opengl.screen_size.width,
-            .y = (bounds.y + bounds.height) / self.opengl.screen_size.height,
+        });
+        self.opengl.vertices.ui[self.opengl.vertex_count + 3] = self.translateNDC(Vertex{
+            .x = bounds.x,
+            .y = bounds.y + bounds.height,
             .color = color,
-        };
+        });
 
         self.opengl.indices[self.opengl.index_count] = 2 + self.opengl.vertex_count;
         self.opengl.indices[self.opengl.index_count + 1] = 1 + self.opengl.vertex_count;
@@ -254,6 +294,17 @@ pub const Backend = struct {
             self.renderQuad(&bounds, rectangle.color);
         }
 
+        for (primatives.rectangles[primatives.defer_rectangles_offset..primatives.rectangles.len]) |rectangle| {
+            const bounds = Bounds{
+                .height = rectangle.height,
+                .width = rectangle.width,
+                .x = rectangle.x,
+                .y = rectangle.y,
+            };
+
+            self.renderQuad(&bounds, rectangle.color);
+        }
+
         //std.debug.print("{any}\n", .{self.opengl.screen_size});
 
         c.__glewBindVertexArray.?(self.vao);
@@ -265,7 +316,8 @@ pub const Backend = struct {
         c.glDrawElements(c.GL_TRIANGLES, @intCast(self.opengl.index_count), c.GL_UNSIGNED_INT, null);
 
         c.glfwSwapBuffers(self.opengl.window);
-        c.glfwPollEvents();
+
+        self.opengl.scroll_offset = .{ 0, 0 };
     }
 
     pub fn updateSize(self: *Backend, width: f32, height: f32) void {
@@ -274,16 +326,18 @@ pub const Backend = struct {
     }
 
     pub fn getEvents(self: *Backend) InputEventInfo {
+        c.glfwPollEvents();
+
         return InputEventInfo{
             .flags = .{
                 .quit = c.glfwWindowShouldClose(self.opengl.window) == c.GLFW_TRUE,
-                .mouse_down = false,
+                .mouse_down = self.opengl.mouse_down,
                 ._padding = 0,
             },
-            .mouse_x = 0,
-            .mouse_y = 0,
-            .scroll_x = 0,
-            .scroll_y = 0,
+            .mouse_x = self.opengl.mouse_position[0],
+            .mouse_y = self.opengl.mouse_position[1],
+            .scroll_x = self.opengl.scroll_offset[0],
+            .scroll_y = self.opengl.scroll_offset[1],
             .input_keys = undefined,
             .input_keys_count = 0,
         };

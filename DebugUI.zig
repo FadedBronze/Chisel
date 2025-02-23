@@ -173,7 +173,10 @@ pub fn start(ui: *DebugUI, window_size: Extents, events: *const InputEventInfo) 
 
 pub fn end(ui: *DebugUI, backend: anytype) !void {
     ui.primatives.end_clip();
+    //const starttime = std.time.milliTimestamp();
     try backend.render(&ui.primatives);
+    //const endtime = std.time.milliTimestamp();
+    //std.debug.print("Render time: {}\n", .{endtime - starttime});
 }
 
 pub fn init() DebugUI {
