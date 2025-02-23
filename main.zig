@@ -14,14 +14,10 @@
 // - docking
 // - tooltips
 
-const c = @cImport({
-    @cInclude("SDL2/SDL.h");
-    @cInclude("SDL2/SDL_ttf.h");
-});
-
 const std = @import("std");
 
 const SDL2Backend = @import("SDL2Backend.zig");
+const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
 
 const utils = @import("utils.zig");
@@ -163,6 +159,8 @@ pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: an
 }
 
 const App = struct {
+    opengl: OpenGL,
+    opengl_backend: OpenGL.Backend,
     sdl2_backend: SDL2Backend,
     debug_ui: DebugUI,
     test_gui_handles: TestGUIHandles,
@@ -177,6 +175,10 @@ const App = struct {
 
         app.debug_ui = DebugUI.init();
         app.sdl2_backend = try SDL2Backend.create(app.window_size[0], app.window_size[1]);
+
+        try app.opengl.init(app.window_size[0], app.window_size[1]);
+
+        app.opengl_backend = try app.opengl.create_backend();
 
         app.test_gui_handles.selected = 0;
 
@@ -320,11 +322,11 @@ const App = struct {
             Frame.end(&self.debug_ui);
         }
 
-        DebugUI.end(&self.debug_ui, self.sdl2_backend) catch unreachable;
+        DebugUI.end(&self.debug_ui, &self.opengl_backend) catch unreachable;
     }
 
     pub fn run(self: *App) !void {
-        const events = self.sdl2_backend.getEvents();
+        const events = self.opengl_backend.getEvents();
 
         if (events.flags.quit) {
             return error.Quit;

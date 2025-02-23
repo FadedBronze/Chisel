@@ -357,7 +357,7 @@ pub fn renderRectangles(self: *const SDL2Backend, rectangles: []const Primatives
     if (c.SDL_RenderGeometry(self.renderer, null, &vertices, @intCast(vertex_count), &indices, @intCast(index_count)) == -1) return error.SDLDrawFailed;
 }
 
-pub fn renderSDL2(self: *const SDL2Backend, primatives: *const Primatives) !void {
+pub fn render(self: *const SDL2Backend, primatives: *const Primatives) !void {
     if (c.SDL_RenderClear(self.renderer) == -1) return error.SDLDrawFailed;
 
     var i: usize = 0;

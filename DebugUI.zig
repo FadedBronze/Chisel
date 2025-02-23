@@ -173,7 +173,7 @@ pub fn start(ui: *DebugUI, window_size: Extents, events: *const InputEventInfo) 
 
 pub fn end(ui: *DebugUI, backend: anytype) !void {
     ui.primatives.end_clip();
-    try backend.renderSDL2(&ui.primatives);
+    try backend.render(&ui.primatives);
 }
 
 pub fn init() DebugUI {
