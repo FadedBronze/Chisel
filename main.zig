@@ -15,6 +15,7 @@
 // - tooltips
 
 const std = @import("std");
+const zm = @import("zm");
 
 const SDL2Backend = @import("SDL2Backend.zig");
 const OpenGL = @import("OpenGL.zig");
@@ -339,13 +340,43 @@ const App = struct {
 };
 
 pub fn main() !void {
-    //FontGenerator.SDFFontGenerator.render();
-    var app = try App.create();
-    var running = true;
+    var allocator = std.heap.page_allocator;
 
-    while (running) {
-        app.run() catch |err| {
-            if (err == error.Quit) running = false;
-        };
-    }
+    var glyph = try allocator.alloc(FontGenerator.Contour, 3);
+
+    glyph[0] = try allocator.alloc(zm.Vec2f, 4);
+    glyph[0][0] = .{ 0.1, 0.1 };
+    glyph[0][1] = .{ 0.9, 0.1 };
+    glyph[0][2] = .{ 0.9, 0.9 };
+    glyph[0][3] = .{ 0.1, 0.9 };
+
+    glyph[1] = try allocator.alloc(zm.Vec2f, 4);
+    glyph[1][0] = .{ 0.3, 0.3 };
+    glyph[1][1] = .{ 0.4, 0.3 };
+    glyph[1][2] = .{ 0.4, 0.4 };
+    glyph[1][3] = .{ 0.3, 0.4 };
+
+    glyph[2] = try allocator.alloc(zm.Vec2f, 4);
+    glyph[2][0] = .{ 0.6, 0.6 };
+    glyph[2][1] = .{ 0.7, 0.6 };
+    glyph[2][2] = .{ 0.7, 0.7 };
+    glyph[2][3] = .{ 0.6, 0.7 };
+
+    var glyphs = try allocator.alloc(FontGenerator.Glyph, 1);
+    glyphs[0] = glyph;
+
+    FontGenerator.SDFFontGenerator.render(glyphs);
+
+    for (glyph) |contour| allocator.free(contour);
+    allocator.free(glyph);
+    allocator.free(glyphs);
+
+    //var app = try App.create();
+    //var running = true;
+
+    //while (running) {
+    //    app.run() catch |err| {
+    //        if (err == error.Quit) running = false;
+    //    };
+    //}
 }
