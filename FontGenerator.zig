@@ -28,6 +28,20 @@ pub fn checkLineIntersectionWithHorizontalRay(p1: zm.Vec2f, p2: zm.Vec2f, height
     };
 }
 
+pub fn distanceToLineSegment(a: zm.Vec2f, b: zm.Vec2f, p: zm.Vec2f) f32 {
+    const ab = b - a;
+    const ap = p - a;
+
+    const ablen = zm.vec.len(ab);
+    const proj = zm.vec.dot(ab, ap) / (ablen * ablen);
+
+    const closest_point = if (proj > 1) b else if (proj < 0) a else a + zm.vec.scale(ab, proj);
+
+    const distance = zm.vec.distance(closest_point, p);
+
+    return distance;
+}
+
 pub const SDFFontGenerator = struct {
     fn render_glyph(
         buffer: []Color,
@@ -85,13 +99,38 @@ pub const SDFFontGenerator = struct {
                 }
             }
         }
+
+        for (0..glyph_size) |y| {
+            for (0..glyph_size) |x| {
+                var min_distance = std.math.floatMax(f32);
+
+                for (glyph.*) |contour| {
+                    var last: zm.Vec2f = zm.vec.scale(contour[contour.len - 1], glyph_size_float);
+
+                    for (0..contour.len) |i| {
+                        const current = zm.vec.scale(contour[i], glyph_size_float);
+                        min_distance = @min(distanceToLineSegment(last, current, zm.Vec2f{
+                            @as(f32, @floatFromInt(x)),
+                            @as(f32, @floatFromInt(y)),
+                        }), min_distance);
+                        last = current;
+                    }
+                }
+
+                if (buffer[(y + y_offset) * width + x + x_offset].r == 255) {
+                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(@min(min_distance * 20 + 125, 255)));
+                } else {
+                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(255 - @min(min_distance * 20 + 125, 255)));
+                }
+            }
+        }
     }
 
     pub fn render(glyphs: []Glyph) void {
         var pixelbuffer: [WIDTH * HEIGHT]Color = undefined;
         @memset(&pixelbuffer, Color.black());
 
-        const glyph_size = 256;
+        const glyph_size = 512;
 
         const glyph_rows = @divTrunc(HEIGHT, glyph_size);
         const glyph_cols = @divTrunc(WIDTH, glyph_size);
