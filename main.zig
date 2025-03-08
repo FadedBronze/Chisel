@@ -344,23 +344,36 @@ pub fn main() !void {
 
     var glyph = try allocator.alloc(FontGenerator.Contour, 3);
 
-    glyph[0] = try allocator.alloc(zm.Vec2f, 4);
-    glyph[0][0] = .{ 0.1, 0.1 };
-    glyph[0][1] = .{ 0.9, 0.1 };
-    glyph[0][2] = .{ 0.9, 0.9 };
-    glyph[0][3] = .{ 0.1, 0.9 };
+    // Outer contour (star-like shape)
+    glyph[0] = try allocator.alloc(zm.Vec2f, 10);
+    glyph[0][0] = .{ 0.5, 0.1 }; // Top
+    glyph[0][1] = .{ 0.65, 0.35 }; // Right top
+    glyph[0][2] = .{ 1.0, 0.35 }; // Right
+    glyph[0][3] = .{ 0.75, 0.5 }; // Right bottom
+    glyph[0][4] = .{ 0.85, 1.0 }; // Bottom right
+    glyph[0][5] = .{ 0.5, 0.75 }; // Bottom
+    glyph[0][6] = .{ 0.15, 1.0 }; // Bottom left
+    glyph[0][7] = .{ 0.25, 0.5 }; // Left bottom
+    glyph[0][8] = .{ 0.0, 0.35 }; // Left
+    glyph[0][9] = .{ 0.35, 0.35 }; // Right top
 
-    glyph[1] = try allocator.alloc(zm.Vec2f, 4);
-    glyph[1][0] = .{ 0.3, 0.3 };
-    glyph[1][1] = .{ 0.4, 0.3 };
-    glyph[1][2] = .{ 0.4, 0.4 };
-    glyph[1][3] = .{ 0.3, 0.4 };
+    // Inner hole contour (circle-like shape in the middle)
+    glyph[1] = try allocator.alloc(zm.Vec2f, 8);
+    glyph[1][0] = .{ 0.35, 0.45 };
+    glyph[1][1] = .{ 0.45, 0.45 };
+    glyph[1][2] = .{ 0.55, 0.45 };
+    glyph[1][3] = .{ 0.65, 0.55 };
+    glyph[1][4] = .{ 0.65, 0.65 };
+    glyph[1][5] = .{ 0.55, 0.75 };
+    glyph[1][6] = .{ 0.45, 0.75 };
+    glyph[1][7] = .{ 0.35, 0.65 };
 
+    // A smaller hole contour inside the first hole
     glyph[2] = try allocator.alloc(zm.Vec2f, 4);
-    glyph[2][0] = .{ 0.6, 0.6 };
-    glyph[2][1] = .{ 0.7, 0.6 };
-    glyph[2][2] = .{ 0.7, 0.7 };
-    glyph[2][3] = .{ 0.6, 0.7 };
+    glyph[2][0] = .{ 0.45, 0.55 };
+    glyph[2][1] = .{ 0.55, 0.55 };
+    glyph[2][2] = .{ 0.55, 0.65 };
+    glyph[2][3] = .{ 0.45, 0.65 };
 
     var glyphs = try allocator.alloc(FontGenerator.Glyph, 1);
     glyphs[0] = glyph;
