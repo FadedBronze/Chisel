@@ -137,7 +137,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
             const y = total_height;
             total_height += height + GAP;
 
-            const dropdown_bounds = .{
+            const dropdown_bounds: Bounds = .{
                 .x = bounds.x + BORDER,
                 .y = y,
                 .width = bounds.width - BORDER * 2,

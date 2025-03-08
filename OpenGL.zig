@@ -13,6 +13,8 @@ const Extents = utils.Extents;
 
 const OpenGL = @This();
 
+const zm = @import("zm");
+
 window: *c.GLFWwindow,
 screen_size: Extents,
 mouse_position: [2]f32,
@@ -70,7 +72,7 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     const width_int = @as(i32, @intFromFloat(width));
     const height_int = @as(i32, @intFromFloat(height));
 
-    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
+    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 4);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, c.GL_TRUE);
     //c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -168,6 +170,8 @@ pub fn create_backend(self: *OpenGL) !Backend {
         return error.ShaderLinkingFailed;
     }
 
+    self.vertices = .{ .ui = undefined };
+
     var vao: u32 = undefined;
     c.__glewGenVertexArrays.?(1, &vao);
     c.__glewBindVertexArray.?(vao);
@@ -195,14 +199,57 @@ pub fn create_backend(self: *OpenGL) !Backend {
     };
 }
 
+inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
+    return .{
+        ((vertex[0] / self.screen_size.width) * 2) - 1,
+        ((vertex[1] / -self.screen_size.height) * 2) + 1,
+    };
+}
+
+pub fn renderQuad(
+    self: *OpenGL,
+    vertices: anytype,
+    vertex_count: *u32,
+    indices: [*]u32,
+    index_count: *u32,
+    bounds: *const Bounds,
+) void {
+    vertices[vertex_count.*].position = self.translateNDC(.{
+        bounds.x,
+        bounds.y,
+    });
+    vertices[vertex_count.* + 1].position = self.translateNDC(.{
+        (bounds.x + bounds.width),
+        bounds.y,
+    });
+    vertices[vertex_count.* + 2].position = self.translateNDC(.{
+        bounds.x + bounds.width,
+        bounds.y + bounds.height,
+    });
+    vertices[vertex_count.* + 3].position = self.translateNDC(.{
+        bounds.x,
+        bounds.y + bounds.height,
+    });
+
+    indices[index_count.*] = 2 + vertex_count.*;
+    indices[index_count.* + 1] = 1 + vertex_count.*;
+    indices[index_count.* + 2] = 0 + vertex_count.*;
+
+    indices[index_count.* + 3] = 2 + vertex_count.*;
+    indices[index_count.* + 4] = 0 + vertex_count.*;
+    indices[index_count.* + 5] = 3 + vertex_count.*;
+
+    vertex_count.* += 4;
+    index_count.* += 6;
+}
+
 pub const Backend = struct {
     opengl: *OpenGL,
     shader: u32,
     vao: u32,
 
     const Vertex = packed struct {
-        x: f32,
-        y: f32,
+        position: zm.Vec2f,
         color: Primatives.Color,
     };
 
@@ -232,46 +279,18 @@ pub const Backend = struct {
         \\}
     ;
 
-    inline fn translateNDC(self: *Backend, vertex: Vertex) Vertex {
-        return Vertex{
-            .x = ((vertex.x / self.opengl.screen_size.width) * 2) - 1,
-            .y = ((vertex.y / -self.opengl.screen_size.height) * 2) + 1,
-            .color = vertex.color,
-        };
-    }
-
     pub fn renderQuad(self: *Backend, bounds: *const Bounds, color: Primatives.Color) void {
-        self.opengl.vertices.ui[self.opengl.vertex_count] = self.translateNDC(Vertex{
-            .x = bounds.x,
-            .y = bounds.y,
-            .color = color,
-        });
-        self.opengl.vertices.ui[self.opengl.vertex_count + 1] = self.translateNDC(Vertex{
-            .x = (bounds.x + bounds.width),
-            .y = bounds.y,
-            .color = color,
-        });
-        self.opengl.vertices.ui[self.opengl.vertex_count + 2] = self.translateNDC(Vertex{
-            .x = bounds.x + bounds.width,
-            .y = bounds.y + bounds.height,
-            .color = color,
-        });
-        self.opengl.vertices.ui[self.opengl.vertex_count + 3] = self.translateNDC(Vertex{
-            .x = bounds.x,
-            .y = bounds.y + bounds.height,
-            .color = color,
-        });
+        self.opengl.renderQuad(
+            &self.opengl.vertices.ui,
+            &self.opengl.vertex_count,
+            &self.opengl.indices,
+            &self.opengl.index_count,
+            bounds,
+        );
 
-        self.opengl.indices[self.opengl.index_count] = 2 + self.opengl.vertex_count;
-        self.opengl.indices[self.opengl.index_count + 1] = 1 + self.opengl.vertex_count;
-        self.opengl.indices[self.opengl.index_count + 2] = 0 + self.opengl.vertex_count;
-
-        self.opengl.indices[self.opengl.index_count + 3] = 2 + self.opengl.vertex_count;
-        self.opengl.indices[self.opengl.index_count + 4] = 0 + self.opengl.vertex_count;
-        self.opengl.indices[self.opengl.index_count + 5] = 3 + self.opengl.vertex_count;
-
-        self.opengl.vertex_count += 4;
-        self.opengl.index_count += 6;
+        for (0..4) |i| {
+            self.opengl.vertices.ui[self.opengl.vertex_count - 4 + i].color = color;
+        }
     }
 
     pub fn render(self: *Backend, primatives: *const Primatives) !void {
@@ -312,8 +331,6 @@ pub const Backend = struct {
 
             self.renderQuad(&bounds, rectangle.color);
         }
-
-        //std.debug.print("{any}\n", .{self.opengl.screen_size});
 
         c.__glewBindVertexArray.?(self.vao);
         c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * self.opengl.vertex_count, &self.opengl.vertices.ui);

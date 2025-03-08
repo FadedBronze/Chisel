@@ -127,7 +127,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
 
     const mouse_pos = @max(@min((ui.mouse_x - (HEIGHT / 2) - bounds.x) / (bounds.width - HEIGHT), 1.0), 0.0);
 
-    if (events.mouse_down and std.math.fabs(mouse_pos - knob_pos) * (bounds.width - HEIGHT * 2) < KNOB_GROW_SIZE) {
+    if (events.mouse_down and @abs(mouse_pos - knob_pos) * (bounds.width - HEIGHT * 2) < KNOB_GROW_SIZE) {
         ui.active_element.slider.holding_knob = true;
     }
 

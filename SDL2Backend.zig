@@ -262,7 +262,7 @@ fn renderText(self: *const SDL2Backend, text_blocks: []const Primatives.TextBloc
 
             const extra = @as(i32, @intFromFloat(text_block.width)) - extent;
 
-            var x: i32 = if (text_block.text_align == .Center)
+            const x: i32 = if (text_block.text_align == .Center)
                 @as(i32, @intFromFloat(text_block.x)) + @divTrunc(extra, 2)
             else if (text_block.text_align == .Right)
                 @as(i32, @intFromFloat(text_block.x)) + extra

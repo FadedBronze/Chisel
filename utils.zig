@@ -2,6 +2,7 @@ const DebugUI = @import("DebugUI.zig");
 const Rectangle = @import("Primatives.zig").Rectangle;
 const Color = @import("Primatives.zig").Color;
 const std = @import("std");
+const zm = @import("zm");
 
 pub const InputEventFlags = packed struct {
     mouse_down: bool,
@@ -338,7 +339,9 @@ pub const Bounds = struct {
     }
 };
 
-pub const Extents = struct {
+pub const Extents = packed struct {
     width: f32,
     height: f32,
 };
+
+pub const Point = zm.Vec2f;

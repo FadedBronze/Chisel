@@ -1,0 +1,13 @@
+.{
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0xb10a864eedae6e29,
+    .name = .chsl2,
+    .paths = .{""},
+    .version = "0.0.1",
+    .dependencies = .{
+        .zm = .{
+            .url = "git+https://github.com/griush/zm#319a44a9b0859214b9240a5c4ae0d8ae9ac16672",
+            .hash = "zm-0.3.0-AAAAAL3MAAA2du9TcSd0z2lFBF5_Qv-0zd7F566Z7B3K",
+        },
+    },
+}

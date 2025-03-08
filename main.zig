@@ -19,6 +19,8 @@ const std = @import("std");
 const SDL2Backend = @import("SDL2Backend.zig");
 const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
+const FontRenderer = @import("FontRenderer.zig");
+const FontGenerator = @import("FontGenerator.zig");
 
 const utils = @import("utils.zig");
 const Extents = utils.Extents;
@@ -69,94 +71,94 @@ const SomeObject = struct {
     },
 };
 
-pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: anytype, x: f32, y: f32, width: f32, height: f32) void {
-    const info = @typeInfo(T);
-    const name = @typeName(T);
-
-    Frame.start(ui, x, y);
-    FlexStrip.start(ui, Extents{
-        .width = width,
-        .height = height,
-    }, FlexStrip.Direction.Column, true);
-    Scroll.start(ui, "12203");
-
-    switch (info) {
-        .Struct => |s| {
-            inline for (s.fields) |field| {
-                Grid.start(ui, Extents{ .height = 60, .width = width }, 3, 1);
-
-                const field_info = @typeInfo(field.type);
-                var id: [field.name.len + name.len + 2]u8 = undefined;
-                @memcpy(id[0..name.len], name);
-                @memcpy(id[name.len .. name.len + field.name.len], field.name);
-                id[name.len + field.name.len] = 'L';
-                id[name.len + field.name.len + 1] = 0;
-
-                Grid.position(ui, 0, 0, 1, 1);
-                _ = Button.create(ui, font_backend, field.name, null, @ptrCast(&id));
-
-                id[name.len + field.name.len] = 0;
-
-                Grid.position(ui, 1, 0, 2, 1);
-
-                switch (field_info) {
-                    .Float => {
-                        TextInput.create(ui, font_backend, InputCreateInfo{
-                            .number = .{
-                                .start = 0.0,
-                                .value = &@field(object, field.name),
-                                .end = 100.0,
-                            },
-                        }, @ptrCast(&id));
-                    },
-                    .Array => |a| {
-                        const array_type = @typeInfo(a.child);
-
-                        if (array_type == .Int and a.sentinel != null and @as(*const u8, @ptrCast(a.sentinel)).* == 0 and array_type.Int.bits == 8 and array_type.Int.signedness == .unsigned) {
-                            const field_ref = &@field(object, field.name);
-                            var text_size: u32 = @intCast(std.mem.span(@as([*:0]const u8, @ptrCast(field_ref))).len);
-
-                            TextInput.create(ui, font_backend, InputCreateInfo{
-                                .character = .{
-                                    .text = field_ref,
-                                    .text_size = &text_size,
-                                },
-                            }, @ptrCast(&id));
-
-                            field_ref[text_size] = 0;
-                        }
-                    },
-                    .Enum => |e| {
-                        //if ()
-                        const names = names: {
-                            var names: [e.fields.len][]const u8 = undefined;
-
-                            inline for (e.fields, 0..) |enum_field, i| {
-                                names[i] = enum_field.name;
-                            }
-
-                            break :names names;
-                        };
-
-                        Dropdown.create(ui, font_backend, Dropdown.CreateInfo{
-                            .selected = @as(*u32, @ptrCast(&@field(object, field.name))),
-                            .options = &names,
-                            .tooltips = &names,
-                        }, @ptrCast(&id));
-                    },
-                    else => {},
-                }
-
-                Grid.end(ui);
-            }
-        },
-        else => {},
-    }
-
-    Scroll.end(ui, Scroll.Mode.Smooth, "12203");
-    FlexStrip.end(ui);
-    Frame.end(ui);
-}
+//pub fn generate_gui(comptime T: type, object: *T, ui: *DebugUI, font_backend: anytype, x: f32, y: f32, width: f32, height: f32) void {
+//    const info = @typeInfo(T);
+//    const name = @typeName(T);
+//
+//    Frame.start(ui, x, y);
+//    FlexStrip.start(ui, Extents{
+//        .width = width,
+//        .height = height,
+//    }, FlexStrip.Direction.Column, true);
+//    Scroll.start(ui, "12203");
+//
+//    switch (info) {
+//        .Struct => |s| {
+//            inline for (s.fields) |field| {
+//                Grid.start(ui, Extents{ .height = 60, .width = width }, 3, 1);
+//
+//                const field_info = @typeInfo(field.type);
+//                var id: [field.name.len + name.len + 2]u8 = undefined;
+//                @memcpy(id[0..name.len], name);
+//                @memcpy(id[name.len .. name.len + field.name.len], field.name);
+//                id[name.len + field.name.len] = 'L';
+//                id[name.len + field.name.len + 1] = 0;
+//
+//                Grid.position(ui, 0, 0, 1, 1);
+//                _ = Button.create(ui, font_backend, field.name, null, @ptrCast(&id));
+//
+//                id[name.len + field.name.len] = 0;
+//
+//                Grid.position(ui, 1, 0, 2, 1);
+//
+//                switch (field_info) {
+//                    .Float => {
+//                        TextInput.create(ui, font_backend, InputCreateInfo{
+//                            .number = .{
+//                                .start = 0.0,
+//                                .value = &@field(object, field.name),
+//                                .end = 100.0,
+//                            },
+//                        }, @ptrCast(&id));
+//                    },
+//                    .Array => |a| {
+//                        const array_type = @typeInfo(a.child);
+//
+//                        if (array_type == .Int and a.sentinel != null and @as(*const u8, @ptrCast(a.sentinel)).* == 0 and array_type.Int.bits == 8 and array_type.Int.signedness == .unsigned) {
+//                            const field_ref = &@field(object, field.name);
+//                            var text_size: u32 = @intCast(std.mem.span(@as([*:0]const u8, @ptrCast(field_ref))).len);
+//
+//                            TextInput.create(ui, font_backend, InputCreateInfo{
+//                                .character = .{
+//                                    .text = field_ref,
+//                                    .text_size = &text_size,
+//                                },
+//                            }, @ptrCast(&id));
+//
+//                            field_ref[text_size] = 0;
+//                        }
+//                    },
+//                    .Enum => |e| {
+//                        //if ()
+//                        const names = names: {
+//                            var names: [e.fields.len][]const u8 = undefined;
+//
+//                            inline for (e.fields, 0..) |enum_field, i| {
+//                                names[i] = enum_field.name;
+//                            }
+//
+//                            break :names names;
+//                        };
+//
+//                        Dropdown.create(ui, font_backend, Dropdown.CreateInfo{
+//                            .selected = @as(*u32, @ptrCast(&@field(object, field.name))),
+//                            .options = &names,
+//                            .tooltips = &names,
+//                        }, @ptrCast(&id));
+//                    },
+//                    else => {},
+//                }
+//
+//                Grid.end(ui);
+//            }
+//        },
+//        else => {},
+//    }
+//
+//    Scroll.end(ui, Scroll.Mode.Smooth, "12203");
+//    FlexStrip.end(ui);
+//    Frame.end(ui);
+//}
 
 const App = struct {
     opengl: OpenGL,
@@ -218,7 +220,7 @@ const App = struct {
             .height = self.window_size[1],
         }, events);
 
-        generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 425, 20, 450, 200);
+        //generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 425, 20, 450, 200);
 
         {
             Frame.start(&self.debug_ui, 20, 630);
@@ -337,6 +339,7 @@ const App = struct {
 };
 
 pub fn main() !void {
+    //FontGenerator.SDFFontGenerator.render();
     var app = try App.create();
     var running = true;
 
