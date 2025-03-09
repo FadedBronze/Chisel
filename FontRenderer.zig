@@ -163,7 +163,7 @@ const ByteWalker = struct {
     }
 };
 
-fn getTableData(raw_font_bytes: []const u8) struct { offset_subtable: OffsetSubtable, table_directory: TableDirectory } {
+fn getTableData(raw_font_bytes: []const u8) !struct { offset_subtable: OffsetSubtable, table_directory: TableDirectory } {
     var offset_subtable: OffsetSubtable = undefined;
     var table_directory: TableDirectory = undefined;
 
@@ -203,7 +203,7 @@ fn getTableData(raw_font_bytes: []const u8) struct { offset_subtable: OffsetSubt
             table_directory.maxp_table = header;
             headers_found += 1;
         } else if (std.mem.eql(u8, &header.tag.name, "cmap")) {
-            table_directory.cmap = header;
+            table_directory.cmap_table = header;
             headers_found += 1;
         } else {
             //TODO
@@ -215,13 +215,16 @@ fn getTableData(raw_font_bytes: []const u8) struct { offset_subtable: OffsetSubt
     std.debug.print("{any}\n", .{offset_subtable});
     std.debug.print("{any}\n", .{table_directory});
 
-    return .{ table_directory, offset_subtable };
+    return .{
+        .offset_subtable = offset_subtable,
+        .table_directory = table_directory,
+    };
 }
 
 fn getFont(raw_font_bytes: []const u8, allocator: *std.mem.Allocator) !Font {
     var font: Font = undefined;
 
-    const table_data = getTableData();
+    const table_data = try getTableData(raw_font_bytes);
 
     var byte_walker = ByteWalker.new(raw_font_bytes);
 
@@ -273,7 +276,7 @@ fn getFont(raw_font_bytes: []const u8, allocator: *std.mem.Allocator) !Font {
 
     try byte_walker.jumpTo(table_data.table_directory.glyf_table.offset);
 
-    font.glyf_table = try allocator.alloc(Glyph, font.maxp_table.number_of_glyphs);
+    font.glyf_table = (try allocator.alloc(Glyph, font.maxp_table.number_of_glyphs)).ptr;
 
     var i: usize = 0;
     while (i < font.maxp_table.number_of_glyphs) : (i += 1) {}
@@ -285,11 +288,12 @@ pub fn create(font_path: []const u8) !FontRenderer {
     var raw_tff_buffer: [64000]u8 = undefined;
 
     var fixed_buffer: [64000]u8 = undefined;
-    var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&fixed_buffer);
+    var fba = std.heap.FixedBufferAllocator.init(&fixed_buffer);
+    var allocator = fba.allocator();
 
     const raw_tff_data = try std.fs.cwd().readFile(font_path, &raw_tff_buffer);
 
-    _ = try getFont(raw_tff_data, &fixed_buffer_allocator);
+    _ = try getFont(raw_tff_data, &allocator);
 
     return FontRenderer{};
 }

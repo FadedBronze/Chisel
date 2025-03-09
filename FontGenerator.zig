@@ -117,10 +117,12 @@ pub const SDFFontGenerator = struct {
                     }
                 }
 
+                min_distance = min_distance / glyph_size_float;
+
                 if (buffer[(y + y_offset) * width + x + x_offset].r == 255) {
-                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(@min(min_distance * 20 + 125, 255)));
+                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(@min(min_distance * 1200 + 127.5, 255)));
                 } else {
-                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(255 - @min(min_distance * 20 + 125, 255)));
+                    buffer[(y + y_offset) * width + x + x_offset] = Primatives.Color.gray(@intFromFloat(255 - @min(min_distance * 1200 + 127.5, 255)));
                 }
             }
         }
@@ -130,7 +132,7 @@ pub const SDFFontGenerator = struct {
         var pixelbuffer: [WIDTH * HEIGHT]Color = undefined;
         @memset(&pixelbuffer, Color.black());
 
-        const glyph_size = 512;
+        const glyph_size = 64;
 
         const glyph_rows = @divTrunc(HEIGHT, glyph_size);
         const glyph_cols = @divTrunc(WIDTH, glyph_size);
