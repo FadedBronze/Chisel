@@ -62,9 +62,9 @@ pub const SDFFontGenerator = struct {
             for (glyph.*) |contour| {
                 var last: zm.Vec2f = zm.vec.scale(contour[contour.len - 1], glyph_size_float);
 
-                for (0..contour.len - 1) |i| {
+                for (0..contour.len) |i| {
                     const current = zm.vec.scale(contour[i], glyph_size_float);
-                    const intersection = checkLineIntersectionWithHorizontalRay(last, current, @floatFromInt(y));
+                    const intersection = checkLineIntersectionWithHorizontalRay(last, current, @as(f32, @floatFromInt(y)) + 0.5);
 
                     if (intersection.intersected) {
                         intersections_buffer[intersections.len] = intersection.x;

@@ -358,15 +358,14 @@ pub fn main() !void {
     glyph[0][9] = .{ 0.35, 0.35 }; // Right top
 
     // Inner hole contour (circle-like shape in the middle)
-    glyph[1] = try allocator.alloc(zm.Vec2f, 8);
+    glyph[1] = try allocator.alloc(zm.Vec2f, 7);
     glyph[1][0] = .{ 0.35, 0.45 };
-    glyph[1][1] = .{ 0.45, 0.45 };
-    glyph[1][2] = .{ 0.55, 0.45 };
-    glyph[1][3] = .{ 0.65, 0.55 };
-    glyph[1][4] = .{ 0.65, 0.65 };
-    glyph[1][5] = .{ 0.55, 0.75 };
-    glyph[1][6] = .{ 0.45, 0.75 };
-    glyph[1][7] = .{ 0.35, 0.65 };
+    glyph[1][1] = .{ 0.55, 0.45 };
+    glyph[1][2] = .{ 0.65, 0.55 };
+    glyph[1][3] = .{ 0.65, 0.63 };
+    glyph[1][4] = .{ 0.55, 0.74 };
+    glyph[1][5] = .{ 0.45, 0.73 };
+    glyph[1][6] = .{ 0.35, 0.68 };
 
     // A smaller hole contour inside the first hole
     glyph[2] = try allocator.alloc(zm.Vec2f, 4);
