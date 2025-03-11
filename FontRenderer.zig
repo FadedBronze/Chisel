@@ -6,6 +6,7 @@ const Font = struct {
     glyf_table: GlyfTable,
     loca_table: LocaTable,
     maxp_table: MaxpTable,
+    cmap_table: CmapTable,
 };
 
 const OffsetSubtable = struct {
@@ -91,7 +92,27 @@ const MaxpTable = struct {
     max_component_depth: u16,
 };
 
-const CmapTable = struct {};
+const CmapPlatforms = packed struct {
+    format_4: bool,
+    format_12: bool,
+    padding: u6,
+};
+
+const CmapFormatFourSubtable = struct {
+    segment_count: u16,
+    start_codes: [*]u16,
+    end_codes: [*]u16,
+    id_delta: [*]u16,
+    id_range_offsets: [*]u16,
+    glyph_id_array: []u16,
+};
+
+const CmapTable = struct {
+    formats: CmapPlatforms,
+    format_4: u32,
+    format_12: u32,
+    format_4_subtable: CmapFormatFourSubtable,
+};
 
 const LocaTable = union {
     offsets16: [*]u16,
@@ -274,12 +295,88 @@ fn getFont(raw_font_bytes: []const u8, allocator: *std.mem.Allocator) !Font {
 
     std.debug.print("{any}\n", .{font.maxp_table});
 
-    try byte_walker.jumpTo(table_data.table_directory.glyf_table.offset);
+    try byte_walker.jumpTo(table_data.table_directory.cmap_table.offset);
 
-    font.glyf_table = (try allocator.alloc(Glyph, font.maxp_table.number_of_glyphs)).ptr;
+    try byte_walker.skipBytes(2);
+    const num_tables = try byte_walker.getUint16();
 
-    var i: usize = 0;
-    while (i < font.maxp_table.number_of_glyphs) : (i += 1) {}
+    @memset(@as(*u8, @ptrCast(&font.cmap_table.formats))[0..1], 0);
+
+    for (0..num_tables) |_| {
+        const platform_id = try byte_walker.getUint16();
+        const encoding_id = try byte_walker.getUint16();
+        const subtable_offset = try byte_walker.getUint32();
+
+        if (platform_id == 0 and encoding_id == 3 or platform_id == 3 and encoding_id == 1) {
+            font.cmap_table.format_4 = subtable_offset;
+            font.cmap_table.formats.format_4 = true;
+        } else if (platform_id == 0 and encoding_id == 4 or platform_id == 3 and encoding_id == 10) {
+            font.cmap_table.format_12 = subtable_offset;
+            font.cmap_table.formats.format_12 = true;
+        }
+    }
+
+    if (font.cmap_table.formats.format_4 == true) {
+        const format_4_offset = table_data.table_directory.cmap_table.offset + font.cmap_table.format_4;
+        try byte_walker.jumpTo(format_4_offset);
+
+        const format = try byte_walker.getUint16();
+        std.debug.assert(format == 4);
+
+        const length = try byte_walker.getUint16();
+        try byte_walker.skipBytes(2);
+
+        const segment_count = @divTrunc(try byte_walker.getUint16(), 2);
+        try byte_walker.skipBytes(6);
+
+        const end_codes = try allocator.alloc(u16, segment_count);
+        const start_codes = try allocator.alloc(u16, segment_count);
+        const id_delta = try allocator.alloc(u16, segment_count);
+        const id_range_offset = try allocator.alloc(u16, segment_count);
+
+        for (0..segment_count) |i| {
+            end_codes[i] = try byte_walker.getUint16();
+        }
+
+        try byte_walker.skipBytes(2);
+
+        for (0..segment_count) |i| {
+            start_codes[i] = try byte_walker.getUint16();
+        }
+
+        for (0..segment_count) |i| {
+            id_delta[i] = try byte_walker.getUint16();
+        }
+
+        for (0..segment_count) |i| {
+            id_range_offset[i] = try byte_walker.getUint16();
+        }
+
+        std.debug.print("{any}\n", .{start_codes[0..segment_count]});
+        std.debug.print("{any}\n", .{end_codes[0..segment_count]});
+        std.debug.print("{any}\n", .{id_delta[0..segment_count]});
+        std.debug.print("{any}\n", .{id_range_offset[0..segment_count]});
+
+        const start_offset = byte_walker.position - format_4_offset;
+
+        const glyph_id_array = try allocator.alloc(u16, @divTrunc(length - start_offset, 2));
+
+        font.cmap_table.format_4_subtable.id_delta = id_delta.ptr;
+        font.cmap_table.format_4_subtable.end_codes = end_codes.ptr;
+        font.cmap_table.format_4_subtable.start_codes = start_codes.ptr;
+        font.cmap_table.format_4_subtable.id_range_offsets = id_range_offset.ptr;
+        font.cmap_table.format_4_subtable.glyph_id_array = glyph_id_array;
+        font.cmap_table.format_4_subtable.segment_count = segment_count;
+    }
+
+    std.debug.print("{}\n", .{font.cmap_table});
+
+    //try byte_walker.jumpTo(table_data.table_directory.glyf_table.offset);
+
+    //font.glyf_table = (try allocator.alloc(Glyph, font.maxp_table.number_of_glyphs)).ptr;
+
+    //var i: usize = 0;
+    //while (i < font.maxp_table.number_of_glyphs) : (i += 1) {}
 
     return font;
 }
