@@ -26,6 +26,7 @@ pub fn build(b: *std.Build) void {
 
     exe.linkSystemLibrary("c");
     exe.linkSystemLibrary("SDL2");
+    exe.linkSystemLibrary("freetype2");
     exe.linkSystemLibrary("SDL2_ttf");
     exe.linkSystemLibrary("glfw");
     exe.linkSystemLibrary("GL");

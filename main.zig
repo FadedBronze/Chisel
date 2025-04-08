@@ -20,8 +20,8 @@ const zm = @import("zm");
 const SDL2Backend = @import("SDL2Backend.zig");
 const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
-const FontRenderer = @import("FontRenderer.zig");
 const FontGenerator = @import("FontGenerator.zig");
+const SDFFontAtlas = @import("SDFFontAtlas.zig");
 
 const utils = @import("utils.zig");
 const Extents = utils.Extents;
@@ -37,6 +37,11 @@ const Button = @import("elements/Button.zig");
 const TextInput = @import("elements/TextInput.zig");
 const InputCreateInfo = TextInput.InputCreateInfo;
 const Element = DebugUI.Element;
+
+const c = @cImport({
+    @cInclude("freetype2/freetype/freetype.h");
+    @cInclude("stb_image_write.h");
+});
 
 const MeaninglessText = struct {
     text: []const u8,
@@ -379,18 +384,70 @@ pub fn main() !void {
 
     //FontGenerator.SDFFontGenerator.render(glyphs);
 
-    _ = try FontRenderer.create("./assets/Sans.ttf");
+    //_ = try FontRenderer.create("./assets/Sans.ttf");
 
     //for (glyph) |contour| allocator.free(contour);
     //allocator.free(glyph);
     //allocator.free(glyphs);
 
-    //var app = try App.create();
-    //var running = true;
+    //var free_type: c.FT_Library = undefined;
+    //_ = c.FT_Init_FreeType(&free_type);
 
-    //while (running) {
-    //    app.run() catch |err| {
-    //        if (err == error.Quit) running = false;
-    //    };
+    //var font_face: c.FT_Face = undefined;
+    //_ = c.FT_New_Face(free_type, "./assets/Sans.ttf", 0, &font_face);
+
+    //const letter_a = c.FT_Get_Char_Index(font_face, 'A');
+
+    //var errno = c.FT_Set_Pixel_Sizes(font_face, 64, 64);
+
+    //std.debug.print("{}\n", .{errno});
+
+    //errno = c.FT_Load_Glyph(font_face, letter_a, c.FT_LOAD_NO_HINTING);
+
+    //_ = c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF);
+
+    //std.debug.print("{}\n", .{errno});
+
+    //const bmp: *c.FT_Bitmap = &font_face.*.glyph.*.bitmap;
+
+    //std.debug.print("{}x{}\n", .{ bmp.width, bmp.rows });
+
+    //var buffer: [100000]u8 = undefined;
+
+    //for (0..(bmp.width * bmp.rows)) |i| {
+    //    buffer[i * 4 + 0] = bmp.buffer[i];
+    //    buffer[i * 4 + 1] = bmp.buffer[i];
+    //    buffer[i * 4 + 2] = bmp.buffer[i];
+    //    buffer[i * 4 + 3] = bmp.buffer[i];
     //}
+
+    //_ = c.stbi_write_png("./assets/out.png", @intCast(bmp.width), @intCast(bmp.rows), 4, &buffer, @intCast(bmp.width * 4));
+
+    var font_atlas = SDFFontAtlas.create();
+
+    for (0..100) |i| {
+        font_atlas.insert_glyph('A' + @as(u32, @intCast(i)));
+
+        for (0..font_atlas.glyph_count) |j| {
+            std.debug.print("{any} ", .{font_atlas.rendered_glyphs[j].characterCode});
+        }
+
+        std.debug.print("\n", .{});
+    }
+
+    font_atlas.insert_glyph('A');
+
+    for (0..font_atlas.glyph_count) |i| {
+        std.debug.print("{any} ", .{font_atlas.rendered_glyphs[i].characterCode});
+    }
+    std.debug.print("\n", .{});
+
+    var app = try App.create();
+    var running = true;
+
+    while (running) {
+        app.run() catch |err| {
+            if (err == error.Quit) running = false;
+        };
+    }
 }
