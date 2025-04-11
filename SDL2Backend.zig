@@ -21,9 +21,9 @@ pub fn create(width: f32, height: f32) !SDL2Backend {
     }
 
     if (c.TTF_Init() == -1) return error.TTFInitFailed;
-    const sans24 = c.TTF_OpenFont("assets/Sans.ttf", 24) orelse return error.FontLoadFailed;
-    const sans18 = c.TTF_OpenFont("assets/Sans.ttf", 18) orelse return error.FontLoadFailed;
-    const sans12 = c.TTF_OpenFont("assets/Sans.ttf", 12) orelse return error.FontLoadFailed;
+    const sans24 = c.TTF_OpenFont("assets/fonts/Sans.ttf", 24) orelse return error.FontLoadFailed;
+    const sans18 = c.TTF_OpenFont("assets/fonts/Sans.ttf", 18) orelse return error.FontLoadFailed;
+    const sans12 = c.TTF_OpenFont("assets/fonts/Sans.ttf", 12) orelse return error.FontLoadFailed;
 
     const window = c.SDL_CreateWindow("wowza", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, @intFromFloat(width), @intFromFloat(height), 0);
     const renderer: *c.SDL_Renderer = c.SDL_CreateRenderer(window, -1, c.SDL_RENDERER_SOFTWARE) orelse return error.SDLInitFailed;

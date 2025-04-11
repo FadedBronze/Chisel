@@ -340,56 +340,11 @@ const App = struct {
             return error.Quit;
         }
 
-        self.ui(&events);
+        //self.ui(&events);
     }
 };
 
 pub fn main() !void {
-    //var allocator = std.heap.page_allocator;
-
-    //var glyph = try allocator.alloc(FontGenerator.Contour, 3);
-
-    //// Outer contour (star-like shape)
-    //glyph[0] = try allocator.alloc(zm.Vec2f, 10);
-    //glyph[0][0] = .{ 0.5, 0.1 }; // Top
-    //glyph[0][1] = .{ 0.65, 0.35 }; // Right top
-    //glyph[0][2] = .{ 1.0, 0.35 }; // Right
-    //glyph[0][3] = .{ 0.75, 0.5 }; // Right bottom
-    //glyph[0][4] = .{ 0.85, 1.0 }; // Bottom right
-    //glyph[0][5] = .{ 0.5, 0.75 }; // Bottom
-    //glyph[0][6] = .{ 0.15, 1.0 }; // Bottom left
-    //glyph[0][7] = .{ 0.25, 0.5 }; // Left bottom
-    //glyph[0][8] = .{ 0.0, 0.35 }; // Left
-    //glyph[0][9] = .{ 0.35, 0.35 }; // Right top
-
-    //// Inner hole contour (circle-like shape in the middle)
-    //glyph[1] = try allocator.alloc(zm.Vec2f, 7);
-    //glyph[1][0] = .{ 0.35, 0.45 };
-    //glyph[1][1] = .{ 0.55, 0.45 };
-    //glyph[1][2] = .{ 0.65, 0.55 };
-    //glyph[1][3] = .{ 0.65, 0.63 };
-    //glyph[1][4] = .{ 0.55, 0.74 };
-    //glyph[1][5] = .{ 0.45, 0.73 };
-    //glyph[1][6] = .{ 0.35, 0.68 };
-
-    //// A smaller hole contour inside the first hole
-    //glyph[2] = try allocator.alloc(zm.Vec2f, 4);
-    //glyph[2][0] = .{ 0.45, 0.55 };
-    //glyph[2][1] = .{ 0.55, 0.55 };
-    //glyph[2][2] = .{ 0.55, 0.65 };
-    //glyph[2][3] = .{ 0.45, 0.65 };
-
-    //var glyphs = try allocator.alloc(FontGenerator.Glyph, 1);
-    //glyphs[0] = glyph;
-
-    //FontGenerator.SDFFontGenerator.render(glyphs);
-
-    //_ = try FontRenderer.create("./assets/Sans.ttf");
-
-    //for (glyph) |contour| allocator.free(contour);
-    //allocator.free(glyph);
-    //allocator.free(glyphs);
-
     //var free_type: c.FT_Library = undefined;
     //_ = c.FT_Init_FreeType(&free_type);
 
@@ -423,31 +378,34 @@ pub fn main() !void {
 
     //_ = c.stbi_write_png("./assets/out.png", @intCast(bmp.width), @intCast(bmp.rows), 4, &buffer, @intCast(bmp.width * 4));
 
-    var font_atlas = SDFFontAtlas.create();
-
-    for (0..100) |i| {
-        font_atlas.insert_glyph('A' + @as(u32, @intCast(i)));
-
-        for (0..font_atlas.glyph_count) |j| {
-            std.debug.print("{any} ", .{font_atlas.rendered_glyphs[j].characterCode});
-        }
-
-        std.debug.print("\n", .{});
-    }
-
-    font_atlas.insert_glyph('A');
-
-    for (0..font_atlas.glyph_count) |i| {
-        std.debug.print("{any} ", .{font_atlas.rendered_glyphs[i].characterCode});
-    }
-    std.debug.print("\n", .{});
-
     var app = try App.create();
+    //var font_atlas
+    var atlas = try SDFFontAtlas.create(&app.opengl);
+
+    //for (0..10) |i| {
+    //    font_atlas.insert_glyph('A' + @as(u32, @intCast(i)));
+
+    //    for (0..font_atlas.glyph_count) |j| {
+    //        std.debug.print("{any} ", .{font_atlas.rendered_glyphs[j].characterCode});
+    //    }
+
+    //    std.debug.print("\n", .{});
+    //}
+
+    //font_atlas.insert_glyph('A');
+
+    //for (0..font_atlas.glyph_count) |i| {
+    //    std.debug.print("{any} ", .{font_atlas.rendered_glyphs[i].characterCode});
+    //}
+    //std.debug.print("\n", .{});
+
     var running = true;
 
     while (running) {
         app.run() catch |err| {
             if (err == error.Quit) running = false;
         };
+
+        try atlas.renderText();
     }
 }

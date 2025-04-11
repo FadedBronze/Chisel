@@ -10,6 +10,7 @@ const utils = @import("utils.zig");
 const InputEventInfo = utils.InputEventInfo;
 const Bounds = utils.Bounds;
 const Extents = utils.Extents;
+const SDFFontAtlas = @import("SDFFontAtlas.zig");
 
 const OpenGL = @This();
 
@@ -23,6 +24,7 @@ mouse_down: bool,
 
 vertices: union {
     ui: [2048]Backend.Vertex,
+    font: [2048]SDFFontAtlas.Vertex,
 },
 vertex_count: u32,
 
@@ -125,13 +127,13 @@ pub fn destroy(_: *OpenGL) void {
     c.glfwTerminate();
 }
 
-pub fn create_backend(self: *OpenGL) !Backend {
+pub fn add_shader(_: *OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_src: [*:0]const u8) !u32 {
     const vertex_shader: u32 = c.__glewCreateShader.?(c.GL_VERTEX_SHADER);
-    c.__glewShaderSource.?(vertex_shader, 1, &Backend.VERTEX_SHADER_SOURCE, null);
+    c.__glewShaderSource.?(vertex_shader, 1, &vertex_shader_src, null);
     c.__glewCompileShader.?(vertex_shader);
 
     const fragment_shader: u32 = c.__glewCreateShader.?(c.GL_FRAGMENT_SHADER);
-    c.__glewShaderSource.?(fragment_shader, 1, &Backend.FRAGMENT_SHADER_SOURCE, null);
+    c.__glewShaderSource.?(fragment_shader, 1, &fragment_shader_src, null);
     c.__glewCompileShader.?(fragment_shader);
 
     var success: i32 = undefined;
@@ -170,6 +172,12 @@ pub fn create_backend(self: *OpenGL) !Backend {
         return error.ShaderLinkingFailed;
     }
 
+    return shader;
+}
+
+pub fn create_backend(self: *OpenGL) !Backend {
+    const shader: u32 = try self.add_shader(Backend.VERTEX_SHADER_SOURCE, Backend.FRAGMENT_SHADER_SOURCE);
+
     self.vertices = .{ .ui = undefined };
 
     var vao: u32 = undefined;
@@ -199,7 +207,7 @@ pub fn create_backend(self: *OpenGL) !Backend {
     };
 }
 
-inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
+pub inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
     return .{
         ((vertex[0] / self.screen_size.width) * 2) - 1,
         ((vertex[1] / -self.screen_size.height) * 2) + 1,
@@ -253,31 +261,8 @@ pub const Backend = struct {
         color: Primatives.Color,
     };
 
-    const VERTEX_SHADER_SOURCE: [*:0]const u8 =
-        \\#version 330 core
-        \\layout (location = 0) in vec2 aPos;
-        \\layout (location = 1) in vec4 aColor;
-        \\
-        \\out vec4 vertexColor;
-        \\
-        \\void main()
-        \\{
-        \\    vertexColor = aColor;
-        \\    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-        \\}
-    ;
-
-    const FRAGMENT_SHADER_SOURCE: [*:0]const u8 =
-        \\#version 330 core
-        \\
-        \\out vec4 FragColor;
-        \\in vec4 vertexColor;
-        \\
-        \\void main()
-        \\{
-        \\    FragColor = vertexColor;
-        \\}
-    ;
+    const VERTEX_SHADER_SOURCE = @embedFile("shaders/base/shader.vert");
+    const FRAGMENT_SHADER_SOURCE = @embedFile("shaders/base/shader.frag");
 
     pub fn renderQuad(self: *Backend, bounds: *const Bounds, color: Primatives.Color) void {
         self.opengl.renderQuad(

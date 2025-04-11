@@ -1,7 +1,7 @@
 #version 430 core
 
 layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec4 aIndex;
+layout (location = 1) in vec2 aTex;
 
 out vec4 vertexColor;
 
