@@ -1,12 +1,12 @@
 #version 430 core
 
 out vec4 FragColor;
-in vec4 vertexColor;
+in vec2 texCoord;
 
-//layout(std430, binding = 0) buffer SSBO {
-//};
+uniform sampler2D tex;
 
 void main()
 {
-    FragColor = vertexColor;
+  //vec4(texture(tex, texCoord).r, 1.0, 1.0, 1.0);
+    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }

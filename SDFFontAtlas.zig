@@ -179,9 +179,12 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
 
     var atlas_texture: u32 = undefined;
 
+    c.__glewActiveTexture.?(c.GL_TEXTURE0);
+
     c.glGenTextures(1, &atlas_texture);
+
     c.glBindTexture(c.GL_TEXTURE_2D, atlas_texture);
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_R8, ATLAS_SIDE_LENGTH, ATLAS_SIDE_LENGTH, 0, c.GL_RED, c.GL_UNSIGNED_BYTE, c.NULL);
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RED, ATLAS_SIDE_LENGTH, ATLAS_SIDE_LENGTH, 0, c.GL_RED, c.GL_UNSIGNED_BYTE, null);
 
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
@@ -239,7 +242,12 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ f32_x, f32_y + f32_height };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x + f32_width, f32_y + f32_height };
 
+    c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
+    c.__glewActiveTexture.?(c.GL_TEXTURE0);
+    const location: c.GLint = c.__glewGetUniformLocation.?(self.shader, "tex");
+    c.__glewUniform1i.?(location, 0);
+
     c.__glewBindVertexArray.?(self.vao);
     c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * self.opengl.vertex_count, &self.opengl.vertices.font);
     c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * self.opengl.index_count, &self.opengl.indices);
@@ -247,16 +255,12 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
     c.glDrawElements(c.GL_TRIANGLES, @intCast(self.opengl.index_count), c.GL_UNSIGNED_INT, null);
 
     c.glfwSwapBuffers(@ptrCast(self.opengl.window));
-
-    std.debug.print("{any}\n", .{self.opengl.vertices.font[0..self.opengl.vertex_count]});
 }
 
 pub fn renderText(self: *SDFFontAtlas) !void {
     self.opengl.vertices = .{ .font = undefined };
     self.opengl.vertex_count = 0;
     self.opengl.index_count = 0;
-
-    std.debug.print("{any}\n", .{self.rendered_glyphs[0]});
 
     try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
 }
@@ -277,6 +281,8 @@ pub fn getGlyph(self: *SDFFontAtlas, id: GlyphId) !GlyphAtlasRecord {
         if (c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
         const bmp: *c.FT_Bitmap = &font_face.*.glyph.*.bitmap;
+
+        c.__glewActiveTexture.?(c.GL_TEXTURE0);
 
         c.glTexSubImage2D(
             c.GL_TEXTURE_2D,

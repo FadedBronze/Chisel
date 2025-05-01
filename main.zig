@@ -14,6 +14,8 @@
 // - docking
 // - tooltips
 
+// howdy
+
 const std = @import("std");
 const zm = @import("zm");
 
@@ -378,9 +380,8 @@ pub fn main() !void {
 
     //_ = c.stbi_write_png("./assets/out.png", @intCast(bmp.width), @intCast(bmp.rows), 4, &buffer, @intCast(bmp.width * 4));
 
-    var app = try App.create();
+    //var app = try App.create();
     //var font_atlas
-    var atlas = try SDFFontAtlas.create(&app.opengl);
 
     //for (0..10) |i| {
     //    font_atlas.insert_glyph('A' + @as(u32, @intCast(i)));
@@ -401,10 +402,22 @@ pub fn main() !void {
 
     var running = true;
 
+    var opengl: OpenGL = undefined;
+    try opengl.init(800, 800);
+
+    var opengl_backend: OpenGL.Backend = try opengl.create_backend();
+    var atlas = try SDFFontAtlas.create(&opengl);
+
     while (running) {
-        app.run() catch |err| {
-            if (err == error.Quit) running = false;
-        };
+        //app.run() catch |err| {
+        //    if (err == error.Quit) running = false;
+        //};
+
+        const events = opengl_backend.getEvents();
+
+        if (events.flags.quit) {
+            running = false;
+        }
 
         try atlas.renderText();
     }
