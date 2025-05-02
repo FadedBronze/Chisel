@@ -57,8 +57,8 @@ pub const Vertex = struct {
     texCoords: zm.Vec2f,
 };
 
-const GLYPH_SIZE = 32;
-const ATLAS_SIDE_LENGTH = 96;
+const GLYPH_SIZE = 64;
+const ATLAS_SIDE_LENGTH = 256;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
 fn roundDownToPow2(n: u32) u32 {
@@ -217,8 +217,8 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
 pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void {
     const glyph = try self.getGlyph(id);
 
-    const f32_x: f32 = @floatFromInt(glyph.position.x);
-    const f32_y: f32 = @floatFromInt(glyph.position.y);
+    const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
+    const f32_y: f32 = @as(f32, @floatFromInt(glyph.position.y)) * GLYPH_SIZE;
     const f32_width: f32 = @floatFromInt(glyph.extents.w);
     const f32_height: f32 = @floatFromInt(glyph.extents.h);
 
@@ -229,6 +229,8 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
         .height = f32_height,
     };
 
+    //std.debug.print("{} {}\n", .{ f32_width, f32_height });
+
     self.opengl.renderQuad(
         &self.opengl.vertices.font,
         &self.opengl.vertex_count,
@@ -237,16 +239,18 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
         &quad,
     );
 
-    self.opengl.vertices.font[self.opengl.vertex_count - 4].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 0].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
 
-    for (self.opengl.vertices.font[self.opengl.vertex_count - 4 .. self.opengl.vertex_count]) |vertex| {
-        std.debug.print("{any}\n", .{vertex});
-    }
+    //if (id.characterCode == 'A') {
+    //    for (self.opengl.vertices.font[self.opengl.vertex_count - 4 .. self.opengl.vertex_count]) |vertex| {
+    //        std.debug.print("{any}\n", .{vertex});
+    //    }
 
-    std.debug.print("\n", .{});
+    //    std.debug.print("\n", .{});
+    //}
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
@@ -270,11 +274,14 @@ pub fn renderText(self: *SDFFontAtlas) !void {
 
     try self.drawCharacter(try GlyphId.getId("Sans", 'B'), .{ 120.0, 120.0 });
 
-    //try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
 
-    //try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 120.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 180.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'O'), .{ 60.0, 120.0 });
 
-    //try self.drawCharacter(try GlyphId.getId("Sans", 'D'), .{ 120.0, 60.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'H'), .{ 120.0, 60.0 });
+
+    try self.drawCharacter(try GlyphId.getId("Sans", 'T'), .{ 120.0, 180.0 });
 }
 
 // untested
@@ -288,13 +295,17 @@ pub fn getGlyph(self: *SDFFontAtlas, id: GlyphId) !GlyphAtlasRecord {
 
         const letter = c.FT_Get_Char_Index(font_face, id.characterCode);
 
-        if (c.FT_Set_Pixel_Sizes(font_face, 64, 64) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
+        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
         if (c.FT_Load_Glyph(font_face, letter, c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
         if (c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
         const bmp: *c.FT_Bitmap = &font_face.*.glyph.*.bitmap;
 
         c.__glewActiveTexture.?(c.GL_TEXTURE0);
+
+        std.debug.print("{} {} {}\n", .{ bmp.width, bmp.pitch, bmp.rows });
+
+        c.glPixelStorei(c.GL_UNPACK_ALIGNMENT, 1);
 
         c.glTexSubImage2D(
             c.GL_TEXTURE_2D,
