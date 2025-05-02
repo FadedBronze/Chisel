@@ -197,7 +197,6 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     var faces: [FONTS.len]c.FT_Face = undefined;
 
     for (FONTS, 0..) |path, i| {
-        //std.debug.print("{}\n", .{c.FT_New_Face(free_type, @ptrCast(path), 0, &faces[i])});
         if (c.FT_New_Face(free_type, @ptrCast(path), 0, &faces[i]) != c.FT_Err_Ok) return error.FontFaceCreateFailed;
     }
 
@@ -229,8 +228,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
         .height = f32_height,
     };
 
-    //std.debug.print("{} {}\n", .{ f32_width, f32_height });
-
     self.opengl.renderQuad(
         &self.opengl.vertices.font,
         &self.opengl.vertex_count,
@@ -243,14 +240,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
-
-    //if (id.characterCode == 'A') {
-    //    for (self.opengl.vertices.font[self.opengl.vertex_count - 4 .. self.opengl.vertex_count]) |vertex| {
-    //        std.debug.print("{any}\n", .{vertex});
-    //    }
-
-    //    std.debug.print("\n", .{});
-    //}
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
@@ -302,8 +291,6 @@ pub fn getGlyph(self: *SDFFontAtlas, id: GlyphId) !GlyphAtlasRecord {
         const bmp: *c.FT_Bitmap = &font_face.*.glyph.*.bitmap;
 
         c.__glewActiveTexture.?(c.GL_TEXTURE0);
-
-        std.debug.print("{} {} {}\n", .{ bmp.width, bmp.pitch, bmp.rows });
 
         c.glPixelStorei(c.GL_UNPACK_ALIGNMENT, 1);
 

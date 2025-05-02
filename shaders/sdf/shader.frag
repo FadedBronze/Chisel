@@ -7,7 +7,10 @@ uniform sampler2D tex;
 
 void main()
 {
-    float color = texture(tex, texCoord).r;
+    float smoothness = 0.05;
+
+    float sdf = texture(tex, texCoord).r;
+    float color = smoothstep(0.5-smoothness, 0.5+smoothness, sdf);
     FragColor = vec4(color, color, color, 1.0);
 
     // FragColor = vec4(1.0, 0.0, 0.0, 1.0);
