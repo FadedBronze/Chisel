@@ -237,10 +237,16 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
         &quad,
     );
 
-    self.opengl.vertices.font[self.opengl.vertex_count - 4].texCoords = zm.Vec2f{ f32_x / f32_width, f32_y / f32_height };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / f32_width, f32_y / f32_height };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ f32_x / f32_width, (f32_y + f32_height) / f32_height };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ (f32_x + f32_width) / f32_width, (f32_y + f32_height) / f32_height };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
+
+    for (self.opengl.vertices.font[self.opengl.vertex_count - 4 .. self.opengl.vertex_count]) |vertex| {
+        std.debug.print("{any}\n", .{vertex});
+    }
+
+    std.debug.print("\n", .{});
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
@@ -262,7 +268,13 @@ pub fn renderText(self: *SDFFontAtlas) !void {
     self.opengl.vertex_count = 0;
     self.opengl.index_count = 0;
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'B'), .{ 120.0, 120.0 });
+
+    //try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
+
+    //try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 120.0 });
+
+    //try self.drawCharacter(try GlyphId.getId("Sans", 'D'), .{ 120.0, 60.0 });
 }
 
 // untested
