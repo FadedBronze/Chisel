@@ -237,10 +237,10 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
         &quad,
     );
 
-    self.opengl.vertices.font[self.opengl.vertex_count - 4].texCoords = zm.Vec2f{ f32_x, f32_y };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ f32_x + f32_width, f32_y };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ f32_x, f32_y + f32_height };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x + f32_width, f32_y + f32_height };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4].texCoords = zm.Vec2f{ f32_x / f32_width, f32_y / f32_height };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / f32_width, f32_y / f32_height };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ f32_x / f32_width, (f32_y + f32_height) / f32_height };
+    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ (f32_x + f32_width) / f32_width, (f32_y + f32_height) / f32_height };
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
