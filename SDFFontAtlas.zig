@@ -57,7 +57,7 @@ pub const Vertex = struct {
     texCoords: zm.Vec2f,
 };
 
-const GLYPH_SIZE = 64;
+const GLYPH_SIZE = 32;
 const ATLAS_SIDE_LENGTH = 256;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
@@ -213,7 +213,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     };
 }
 
-pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void {
+pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale: u32) !void {
     const glyph = try self.getGlyph(id);
 
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
@@ -221,11 +221,13 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f) !void
     const f32_width: f32 = @floatFromInt(glyph.extents.w);
     const f32_height: f32 = @floatFromInt(glyph.extents.h);
 
+    const aspect_ratio = f32_width / f32_height;
+
     const quad: utils.Bounds = .{
         .x = position[0],
         .y = position[1],
-        .width = f32_width,
-        .height = f32_height,
+        .width = @as(f32, @floatFromInt(scale)) * aspect_ratio,
+        .height = @as(f32, @floatFromInt(scale)),
     };
 
     self.opengl.renderQuad(
@@ -261,16 +263,18 @@ pub fn renderText(self: *SDFFontAtlas) !void {
     self.opengl.vertex_count = 0;
     self.opengl.index_count = 0;
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'B'), .{ 120.0, 120.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'B'), .{ 120.0, 120.0 }, 16);
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 }, 16);
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 180.0 });
-    try self.drawCharacter(try GlyphId.getId("Sans", 'O'), .{ 60.0, 120.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 180.0 }, 16);
+    try self.drawCharacter(try GlyphId.getId("Sans", 'O'), .{ 60.0, 120.0 }, 16);
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'H'), .{ 120.0, 60.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'H'), .{ 120.0, 60.0 }, 16);
 
-    try self.drawCharacter(try GlyphId.getId("Sans", 'T'), .{ 120.0, 180.0 });
+    try self.drawCharacter(try GlyphId.getId("Sans", 'T'), .{ 120.0, 180.0 }, 16);
+
+    try self.drawCharacter(try GlyphId.getId("Sans", 'I'), .{ 180.0, 180.0 }, 16);
 }
 
 // untested
