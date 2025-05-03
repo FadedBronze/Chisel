@@ -222,13 +222,14 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
     const f32_width: f32 = @floatFromInt(glyph.extents.w);
     const f32_height: f32 = @floatFromInt(glyph.extents.h);
 
-    const aspect_ratio = f32_width / f32_height;
+    const scaled_width = f32_width / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
+    const scaled_height = f32_height / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
 
     const quad: utils.Bounds = .{
         .x = position[0],
         .y = position[1],
-        .width = @as(f32, @floatFromInt(scale)) * aspect_ratio,
-        .height = @as(f32, @floatFromInt(scale)),
+        .width = scaled_width,
+        .height = scaled_height,
     };
 
     self.opengl.renderQuad(
@@ -244,7 +245,7 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
 
-    return @intFromFloat(@as(f32, @floatFromInt(scale)) * aspect_ratio);
+    return @intFromFloat(scaled_width);
 }
 
 // text_blocks: []const Primatives.TextBlock
@@ -259,7 +260,7 @@ pub fn renderText(self: *SDFFontAtlas) !void {
     var offset: f32 = 0;
 
     for (test_sentence) |char| {
-        offset += @floatFromInt(try self.drawCharacter(try GlyphId.getId("Sans", char), .{ 20.0 + offset, 20.0 }, 32));
+        offset += @floatFromInt(try self.drawCharacter(try GlyphId.getId("Sans", char), .{ 20.0 + offset, 20.0 }, 24));
     }
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
