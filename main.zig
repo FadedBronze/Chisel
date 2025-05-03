@@ -365,7 +365,7 @@ pub fn main() !void {
                 .text_break = .Word,
                 .color = Primatives.Color.white(),
                 .font_id = 0,
-                .text = "This_is_zigging_it.",
+                .text = "This is zigging it.",
             },
         });
     }

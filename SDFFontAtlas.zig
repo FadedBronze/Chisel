@@ -223,6 +223,12 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
 pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, position: zm.Vec2f, scale: u32) !u32 {
     const glyph = try self.getGlyph(characterCode, fontId);
 
+    const scaled_advance_width = @as(f32, @floatFromInt(glyph.advanceWidth)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
+
+    if (characterCode == ' ') {
+        return @intFromFloat(scaled_advance_width - 1);
+    }
+
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
     const f32_y: f32 = @as(f32, @floatFromInt(glyph.position.y)) * GLYPH_SIZE;
     const f32_width: f32 = @floatFromInt(glyph.extents.w);
@@ -230,7 +236,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, posit
 
     const scaled_width = f32_width / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
     const scaled_height = f32_height / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
-    const scaled_advance_width = @as(f32, @floatFromInt(glyph.advanceWidth)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
     const scaled_baseline = @as(f32, @floatFromInt(glyph.baseline)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
 
     const quad: utils.Bounds = .{
@@ -361,8 +366,21 @@ pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock
     c.glfwSwapBuffers(@ptrCast(self.opengl.window));
 }
 
-// untested
 pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtlasRecord {
+    if (characterCode == ' ') {
+        if (c.FT_Load_Glyph(self.faces[fontId], ' ', c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
+        const glyph = self.faces[fontId].*.glyph.*;
+
+        return GlyphAtlasRecord{
+            .advanceWidth = @intCast(glyph.metrics.horiAdvance),
+            .baseline = 0,
+            .extents = .{ .w = 0, .h = 0 },
+            .fontId = fontId,
+            .characterCode = characterCode,
+            .position = .{ .x = std.math.maxInt(u16), .y = std.math.maxInt(u16) },
+        };
+    }
+
     const isTransfer = self.updateLruGlyph(characterCode, fontId);
     const glyph: *GlyphAtlasRecord = &self.rendered_glyphs[0];
 
