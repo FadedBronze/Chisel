@@ -18,7 +18,7 @@ const FONTS = [_][]const u8{
     "./assets/fonts/Sans.ttf",
 };
 
-pub fn getId(name: []const u8) !u16 {
+pub fn getFontId(name: []const u8) !u32 {
     for (FONTS, 0..) |font, i| {
         if (std.mem.containsAtLeast(u8, font, 1, name)) {
             return @intCast(i);
@@ -31,7 +31,7 @@ const GlyphAtlasRecord = struct {
     position: GlyphAtlasPosition,
     extents: GlyphExtents,
     characterCode: u32,
-    fontId: u16,
+    fontId: u32,
     baseline: i16,
     advanceWidth: u16,
 };
@@ -75,7 +75,7 @@ faces: [FONTS.len]c.FT_Face,
 shader: u32,
 vao: u32,
 
-pub fn updateLruGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u16) bool {
+pub fn updateLruGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) bool {
     var foundGlyphIndex: i64 = -1;
     var isTransfer: bool = false;
 
@@ -220,7 +220,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     };
 }
 
-pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u16, position: zm.Vec2f, scale: u32) !u32 {
+pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, position: zm.Vec2f, scale: u32) !u32 {
     const glyph = try self.getGlyph(characterCode, fontId);
 
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
@@ -256,26 +256,94 @@ pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u16, posit
     return @intFromFloat(scaled_advance_width);
 }
 
-// text_blocks: []const Primatives.TextBlock
+//
 
-pub fn renderText(self: *SDFFontAtlas) !void {
+pub fn getLineWidth(self: *const SDFFontAtlas, font_id: u32, text: []const u8) f32 {
+    var width: f32 = 0;
+    for (text) |char| {
+        width += (self.getGlyph(char, font_id) catch continue).advanceWidth;
+    }
+    return width;
+}
+
+pub fn getLineHeight(self: *const SDFFontAtlas, font_id: u32) f32 {
+    const bounds = self.faces[font_id].*.bbox;
+    return @floatFromInt(bounds.yMax - bounds.yMin);
+}
+
+pub fn getRequiredLinesToFitLetters(self: *const SDFFontAtlas, font_id: u32, width: f32, text: []const u8) u32 {
+    var lines: u32 = 0;
+    var current_width: f32 = 0;
+
+    for (text) |char| {
+        const next_delta = (self.getGlyph(char, font_id) catch continue).advanceWidth;
+        current_width += next_delta;
+
+        if (current_width > width) {
+            lines += 1;
+            current_width = next_delta;
+        }
+    }
+
+    return lines;
+}
+
+fn getCharactersThatFitOnLine(self: *const SDFFontAtlas, font_id: u32, width: f32, text: []const u8) u32 {
+    var current_width: f32 = 0;
+    var characters: u32 = 0;
+
+    for (text) |char| {
+        current_width += (self.getGlyph(char, font_id) catch continue).advanceWidth;
+        characters += 1;
+
+        if (current_width > width) {
+            return characters - 1;
+        }
+    }
+
+    return characters;
+}
+
+pub fn getRequiredLinesToFitWords(self: *const SDFFontAtlas, font_id: u32, width: f32, text: []const u8) u32 {
+    var count: u32 = 0;
+    var current_count: u32 = 0;
+    var lines: u32 = 0;
+
+    while (current_count < text.len) {
+        self.getLineWidth(self, font_id, text);
+
+        count = self.getCharactersThatFitOnLine(font_id, width + 1, text[current_count..]);
+
+        while (current_count + count < text.len and text[current_count + count] != ' ') {
+            count -= 1;
+        }
+
+        current_count += count + 1;
+        lines += 1;
+    }
+
+    return lines;
+}
+
+pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock) !void {
     self.opengl.vertices = .{ .font = undefined };
     self.opengl.vertex_count = 0;
     self.opengl.index_count = 0;
 
-    // spaces make this crash
-    const test_sentence = "Satisfactory_kerning_zigging_for_life!!!";
     var offset: f32 = 0;
-    const sans_id = try getId("Sans");
 
-    offset += @floatFromInt(try self.drawCharacter(test_sentence[0], sans_id, .{ 40.0, 40.0 }, 24));
+    for (text_blocks) |text_block| {
+        const font_id = text_block.font_id;
 
-    for (1..test_sentence.len) |i| {
-        const char = test_sentence[i - 1];
-        const next_char = test_sentence[i];
-        var kerning: c.FT_Vector = undefined;
-        if (c.FT_Get_Kerning(self.faces[sans_id], char, next_char, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
-        offset += @floatFromInt(try self.drawCharacter(next_char, sans_id, .{ 40.0 + offset + @as(f32, @floatFromInt(kerning.x)), 40.0 }, 24));
+        offset += @floatFromInt(try self.drawCharacter(text_block.text[0], font_id, .{ 40.0, 40.0 }, 24));
+
+        for (1..text_block.text.len) |i| {
+            const char = text_block.text[i - 1];
+            const next_char = text_block.text[i];
+            var kerning: c.FT_Vector = undefined;
+            if (c.FT_Get_Kerning(self.faces[font_id], char, next_char, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
+            offset += @floatFromInt(try self.drawCharacter(next_char, font_id, .{ 40.0 + offset + @as(f32, @floatFromInt(kerning.x)), 40.0 }, 24));
+        }
     }
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
@@ -294,7 +362,7 @@ pub fn renderText(self: *SDFFontAtlas) !void {
 }
 
 // untested
-pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u16) !GlyphAtlasRecord {
+pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtlasRecord {
     const isTransfer = self.updateLruGlyph(characterCode, fontId);
     const glyph: *GlyphAtlasRecord = &self.rendered_glyphs[0];
 

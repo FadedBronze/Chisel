@@ -22,6 +22,7 @@ const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
 const FontGenerator = @import("FontGenerator.zig");
 const SDFFontAtlas = @import("SDFFontAtlas.zig");
+const Primatives = @import("Primatives.zig");
 
 const utils = @import("utils.zig");
 const Extents = utils.Extents;
@@ -355,6 +356,17 @@ pub fn main() !void {
             if (err == error.Quit) running = false;
         };
 
-        try atlas.renderText();
+        try atlas.renderText(&[_]Primatives.TextBlock{
+            .{
+                .x = 40.0,
+                .y = 40.0,
+                .width = 400.0,
+                .text_align = .Right,
+                .text_break = .Word,
+                .color = Primatives.Color.white(),
+                .font_id = 0,
+                .text = "This_is_zigging_it.",
+            },
+        });
     }
 }
