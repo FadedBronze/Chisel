@@ -10,6 +10,7 @@ const utils = @import("utils.zig");
 const std = @import("std");
 
 const OpenGL = @import("OpenGL.zig");
+const Primatives = @import("Primatives.zig");
 
 const SDFFontAtlas = @This();
 
@@ -213,7 +214,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     };
 }
 
-pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale: u32) !void {
+pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale: u32) !u32 {
     const glyph = try self.getGlyph(id);
 
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
@@ -243,6 +244,24 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
 
+    return @intFromFloat(@as(f32, @floatFromInt(scale)) * aspect_ratio);
+}
+
+// text_blocks: []const Primatives.TextBlock
+
+pub fn renderText(self: *SDFFontAtlas) !void {
+    self.opengl.vertices = .{ .font = undefined };
+    self.opengl.vertex_count = 0;
+    self.opengl.index_count = 0;
+
+    // spaces make this crash
+    const test_sentence = "Thisisatestsentence.";
+    var offset: f32 = 0;
+
+    for (test_sentence) |char| {
+        offset += @floatFromInt(try self.drawCharacter(try GlyphId.getId("Sans", char), .{ 20.0 + offset, 20.0 }, 32));
+    }
+
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
     c.__glewUseProgram.?(self.shader);
     c.__glewActiveTexture.?(c.GL_TEXTURE0);
@@ -256,25 +275,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
     c.glDrawElements(c.GL_TRIANGLES, @intCast(self.opengl.index_count), c.GL_UNSIGNED_INT, null);
 
     c.glfwSwapBuffers(@ptrCast(self.opengl.window));
-}
-
-pub fn renderText(self: *SDFFontAtlas) !void {
-    self.opengl.vertices = .{ .font = undefined };
-    self.opengl.vertex_count = 0;
-    self.opengl.index_count = 0;
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'B'), .{ 120.0, 120.0 }, 16);
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'A'), .{ 60.0, 60.0 }, 16);
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'C'), .{ 60.0, 180.0 }, 16);
-    try self.drawCharacter(try GlyphId.getId("Sans", 'O'), .{ 60.0, 120.0 }, 16);
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'H'), .{ 120.0, 60.0 }, 16);
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'T'), .{ 120.0, 180.0 }, 16);
-
-    try self.drawCharacter(try GlyphId.getId("Sans", 'I'), .{ 180.0, 180.0 }, 16);
 }
 
 // untested
