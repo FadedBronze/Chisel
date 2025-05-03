@@ -18,27 +18,22 @@ const FONTS = [_][]const u8{
     "./assets/fonts/Sans.ttf",
 };
 
-pub const GlyphId = struct {
-    characterCode: u32,
-    fontId: u32,
-
-    pub fn getId(name: []const u8, character: u32) !GlyphId {
-        for (FONTS, 0..) |font, i| {
-            if (std.mem.containsAtLeast(u8, font, 1, name)) {
-                return GlyphId{
-                    .fontId = @intCast(i),
-                    .characterCode = character,
-                };
-            }
+pub fn getId(name: []const u8) !u16 {
+    for (FONTS, 0..) |font, i| {
+        if (std.mem.containsAtLeast(u8, font, 1, name)) {
+            return @intCast(i);
         }
-        return error.NotFound;
     }
-};
+    return error.NotFound;
+}
 
 const GlyphAtlasRecord = struct {
-    id: GlyphId,
     position: GlyphAtlasPosition,
     extents: GlyphExtents,
+    characterCode: u32,
+    fontId: u16,
+    baseline: i16,
+    advanceWidth: u16,
 };
 
 const GlyphExtents = struct {
@@ -58,7 +53,7 @@ pub const Vertex = struct {
     texCoords: zm.Vec2f,
 };
 
-const GLYPH_SIZE = 32;
+const GLYPH_SIZE = 40;
 const ATLAS_SIDE_LENGTH = 256;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
@@ -80,13 +75,13 @@ faces: [FONTS.len]c.FT_Face,
 shader: u32,
 vao: u32,
 
-pub fn update_lru_glyph(self: *SDFFontAtlas, id: GlyphId) bool {
+pub fn updateLruGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u16) bool {
     var foundGlyphIndex: i64 = -1;
     var isTransfer: bool = false;
 
     for (0..MAX_GLYPHS) |i| {
-        if (self.rendered_glyphs[i].id.characterCode == id.characterCode and
-            self.rendered_glyphs[i].id.fontId == id.fontId)
+        if (self.rendered_glyphs[i].characterCode == characterCode and
+            self.rendered_glyphs[i].fontId == fontId)
         {
             foundGlyphIndex = @intCast(i);
             break;
@@ -97,7 +92,8 @@ pub fn update_lru_glyph(self: *SDFFontAtlas, id: GlyphId) bool {
         if (self.glyph_count < MAX_GLYPHS) {
             self.heapify_up(self.glyph_count);
 
-            self.rendered_glyphs[0].id = id;
+            self.rendered_glyphs[0].characterCode = characterCode;
+            self.rendered_glyphs[0].fontId = fontId;
             self.rendered_glyphs[0].position.x = self.glyph_count % GLYPHS_PER_EXTENT;
             self.rendered_glyphs[0].position.y = self.glyph_count / GLYPHS_PER_EXTENT;
 
@@ -112,11 +108,16 @@ pub fn update_lru_glyph(self: *SDFFontAtlas, id: GlyphId) bool {
             const victimIndex = self.glyph_count - self.currentEviction;
             const prevPos = self.rendered_glyphs[victimIndex].position;
             const prevExtent = self.rendered_glyphs[victimIndex].extents;
+            const prevBaseline = self.rendered_glyphs[victimIndex].baseline;
+            const prevAdvanceWidth = self.rendered_glyphs[victimIndex].advanceWidth;
 
             self.heapify_up(victimIndex);
-            self.rendered_glyphs[0].id = id;
+            self.rendered_glyphs[0].characterCode = characterCode;
+            self.rendered_glyphs[0].fontId = fontId;
             self.rendered_glyphs[0].position = prevPos;
             self.rendered_glyphs[0].extents = prevExtent;
+            self.rendered_glyphs[0].baseline = prevBaseline;
+            self.rendered_glyphs[0].advanceWidth = prevAdvanceWidth;
         }
     } else {
         isTransfer = true;
@@ -124,11 +125,16 @@ pub fn update_lru_glyph(self: *SDFFontAtlas, id: GlyphId) bool {
         const foundIndex: usize = @intCast(foundGlyphIndex);
         const prevPos = self.rendered_glyphs[foundIndex].position;
         const prevExtent = self.rendered_glyphs[foundIndex].extents;
+        const prevBaseline = self.rendered_glyphs[foundIndex].baseline;
+        const prevAdvanceWidth = self.rendered_glyphs[foundIndex].advanceWidth;
 
         self.heapify_up(foundIndex);
-        self.rendered_glyphs[0].id = id;
+        self.rendered_glyphs[0].characterCode = characterCode;
+        self.rendered_glyphs[0].fontId = fontId;
         self.rendered_glyphs[0].position = prevPos;
         self.rendered_glyphs[0].extents = prevExtent;
+        self.rendered_glyphs[0].baseline = prevBaseline;
+        self.rendered_glyphs[0].advanceWidth = prevAdvanceWidth;
     }
 
     return isTransfer;
@@ -214,8 +220,8 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     };
 }
 
-pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale: u32) !u32 {
-    const glyph = try self.getGlyph(id);
+pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u16, position: zm.Vec2f, scale: u32) !u32 {
+    const glyph = try self.getGlyph(characterCode, fontId);
 
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
     const f32_y: f32 = @as(f32, @floatFromInt(glyph.position.y)) * GLYPH_SIZE;
@@ -224,10 +230,12 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
 
     const scaled_width = f32_width / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
     const scaled_height = f32_height / GLYPH_SIZE * @as(f32, @floatFromInt(scale));
+    const scaled_advance_width = @as(f32, @floatFromInt(glyph.advanceWidth)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
+    const scaled_baseline = @as(f32, @floatFromInt(glyph.baseline)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
 
     const quad: utils.Bounds = .{
         .x = position[0],
-        .y = position[1],
+        .y = position[1] - scaled_baseline,
         .width = scaled_width,
         .height = scaled_height,
     };
@@ -245,7 +253,7 @@ pub fn drawCharacter(self: *SDFFontAtlas, id: GlyphId, position: zm.Vec2f, scale
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
     self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
 
-    return @intFromFloat(scaled_width);
+    return @intFromFloat(scaled_advance_width);
 }
 
 // text_blocks: []const Primatives.TextBlock
@@ -256,11 +264,18 @@ pub fn renderText(self: *SDFFontAtlas) !void {
     self.opengl.index_count = 0;
 
     // spaces make this crash
-    const test_sentence = "Thisisatestsentence.";
+    const test_sentence = "Satisfactory_kerning_zigging_for_life!!!";
     var offset: f32 = 0;
+    const sans_id = try getId("Sans");
 
-    for (test_sentence) |char| {
-        offset += @floatFromInt(try self.drawCharacter(try GlyphId.getId("Sans", char), .{ 20.0 + offset, 20.0 }, 24));
+    offset += @floatFromInt(try self.drawCharacter(test_sentence[0], sans_id, .{ 40.0, 40.0 }, 24));
+
+    for (1..test_sentence.len) |i| {
+        const char = test_sentence[i - 1];
+        const next_char = test_sentence[i];
+        var kerning: c.FT_Vector = undefined;
+        if (c.FT_Get_Kerning(self.faces[sans_id], char, next_char, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
+        offset += @floatFromInt(try self.drawCharacter(next_char, sans_id, .{ 40.0 + offset + @as(f32, @floatFromInt(kerning.x)), 40.0 }, 24));
     }
 
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
@@ -279,21 +294,23 @@ pub fn renderText(self: *SDFFontAtlas) !void {
 }
 
 // untested
-pub fn getGlyph(self: *SDFFontAtlas, id: GlyphId) !GlyphAtlasRecord {
-    const isTransfer = self.update_lru_glyph(id);
+pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u16) !GlyphAtlasRecord {
+    const isTransfer = self.updateLruGlyph(characterCode, fontId);
     const glyph: *GlyphAtlasRecord = &self.rendered_glyphs[0];
 
     // pixels already be in the atlas otherwise have to place
     if (!isTransfer) {
-        const font_face = self.faces[id.fontId];
+        const font_face = self.faces[fontId];
 
-        const letter = c.FT_Get_Char_Index(font_face, id.characterCode);
+        const letter = c.FT_Get_Char_Index(font_face, characterCode);
 
-        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
+        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE * 0.875, GLYPH_SIZE * 0.875) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
         if (c.FT_Load_Glyph(font_face, letter, c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
         if (c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
         const bmp: *c.FT_Bitmap = &font_face.*.glyph.*.bitmap;
+
+        //std.debug.print("{} {}\n", .{ bmp.rows, bmp.width });
 
         c.__glewActiveTexture.?(c.GL_TEXTURE0);
 
@@ -313,6 +330,9 @@ pub fn getGlyph(self: *SDFFontAtlas, id: GlyphId) !GlyphAtlasRecord {
 
         glyph.extents.w = @intCast(bmp.width);
         glyph.extents.h = @intCast(bmp.rows);
+        // + font_face.*.glyph.*.bitmap_top * 64
+        glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY);
+        glyph.advanceWidth = @intCast(font_face.*.glyph.*.metrics.horiAdvance);
     }
 
     return glyph.*;

@@ -107,6 +107,9 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
         return error.GLEWInitFailed;
     }
 
+    c.glEnable(c.GL_BLEND);
+    c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA);
+
     c.glEnable(c.GL_DEBUG_OUTPUT);
     c.__glewDebugMessageCallback.?(debugCallback, null);
 
