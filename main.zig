@@ -18,10 +18,10 @@ const std = @import("std");
 const zm = @import("zm");
 
 const SDL2Backend = @import("SDL2Backend.zig");
+const OpenGLBackend = @import("OpenGLBackend.zig");
 const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
 const FontGenerator = @import("FontGenerator.zig");
-const SDFFontAtlas = @import("SDFFontAtlas.zig");
 const Primatives = @import("Primatives.zig");
 
 const utils = @import("utils.zig");
@@ -169,7 +169,7 @@ const SomeObject = struct {
 
 const App = struct {
     opengl: OpenGL,
-    opengl_backend: OpenGL.Backend,
+    opengl_backend: OpenGLBackend,
     sdl2_backend: SDL2Backend,
     debug_ui: DebugUI,
     test_gui_handles: TestGUIHandles,
@@ -185,10 +185,7 @@ const App = struct {
         app.debug_ui = DebugUI.init();
         app.sdl2_backend = try SDL2Backend.create(app.window_size[0], app.window_size[1]);
 
-        try app.opengl.init(app.window_size[0], app.window_size[1]);
-
-        app.opengl_backend = try app.opengl.create_backend();
-
+        app.opengl_backend = try OpenGLBackend.create(&app.opengl, app.window_size[0], app.window_size[1]);
         app.test_gui_handles.selected = 0;
 
         app.test_gui_handles.hello_button = MeaninglessText{
@@ -341,13 +338,12 @@ const App = struct {
             return error.Quit;
         }
 
-        //self.ui(&events);
+        self.ui(&events);
     }
 };
 
 pub fn main() !void {
     var app = try App.create();
-    var atlas = try SDFFontAtlas.create(&app.opengl);
 
     var running = true;
 
@@ -355,18 +351,5 @@ pub fn main() !void {
         app.run() catch |err| {
             if (err == error.Quit) running = false;
         };
-
-        try atlas.renderText(&[_]Primatives.TextBlock{
-            .{
-                .x = 40.0,
-                .y = 40.0,
-                .width = 400.0,
-                .text_align = .Right,
-                .text_break = .Word,
-                .color = Primatives.Color.white(),
-                .font_id = 0,
-                .text = "This is zigging it.",
-            },
-        });
     }
 }

@@ -147,6 +147,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: InputCreateInfo,
     }
 
     const text_block = Primatives.TextBlock{
+        .size = 24,
         .x = PADDING + bounds.x,
         .y = bounds.y + @divExact(remaining_vertical_space, 2),
         .width = 10000,

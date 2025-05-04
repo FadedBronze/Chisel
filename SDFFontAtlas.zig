@@ -4,10 +4,9 @@ const c = @cImport({
     @cInclude("GL/glew.h");
     @cInclude("GLFW/glfw3.h");
 });
-
 const utils = @import("utils.zig");
-
 const std = @import("std");
+const zm = @import("zm");
 
 const OpenGL = @import("OpenGL.zig");
 const Primatives = @import("Primatives.zig");
@@ -46,14 +45,12 @@ const GlyphAtlasPosition = struct {
     y: u16,
 };
 
-const zm = @import("zm");
-
 pub const Vertex = struct {
     position: zm.Vec2f,
     texCoords: zm.Vec2f,
 };
 
-const GLYPH_SIZE = 40;
+const GLYPH_SIZE = 32;
 const ATLAS_SIDE_LENGTH = 256;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
@@ -261,8 +258,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, posit
     return @intFromFloat(scaled_advance_width);
 }
 
-//
-
 pub fn getLineWidth(self: *const SDFFontAtlas, font_id: u32, text: []const u8) f32 {
     var width: f32 = 0;
     for (text) |char| {
@@ -340,14 +335,22 @@ pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock
     for (text_blocks) |text_block| {
         const font_id = text_block.font_id;
 
-        offset += @floatFromInt(try self.drawCharacter(text_block.text[0], font_id, .{ 40.0, 40.0 }, 24));
+        offset += @floatFromInt(try self.drawCharacter(text_block.text[0], font_id, .{ 40.0, 40.0 }, text_block.size));
 
         for (1..text_block.text.len) |i| {
             const char = text_block.text[i - 1];
             const next_char = text_block.text[i];
+
+            const char_index = c.FT_Get_Char_Index(self.faces[font_id], char);
+            const next_char_index = c.FT_Get_Char_Index(self.faces[font_id], next_char);
+
             var kerning: c.FT_Vector = undefined;
-            if (c.FT_Get_Kerning(self.faces[font_id], char, next_char, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
-            offset += @floatFromInt(try self.drawCharacter(next_char, font_id, .{ 40.0 + offset + @as(f32, @floatFromInt(kerning.x)), 40.0 }, 24));
+
+            if (c.FT_Get_Kerning(self.faces[font_id], char_index, next_char_index, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
+            const scaled_kerning: f32 = @as(f32, @floatFromInt(kerning.x)) / 64 * @as(f32, @floatFromInt(text_block.size));
+            const scaled_kerning_y: f32 = @as(f32, @floatFromInt(kerning.y)) / 64 * @as(f32, @floatFromInt(text_block.size));
+
+            offset += @floatFromInt(try self.drawCharacter(next_char, font_id, .{ 40.0 + offset + scaled_kerning, 40.0 + scaled_kerning_y }, text_block.size));
         }
     }
 
@@ -390,7 +393,7 @@ pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtla
 
         const letter = c.FT_Get_Char_Index(font_face, characterCode);
 
-        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE * 0.875, GLYPH_SIZE * 0.875) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
+        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
         if (c.FT_Load_Glyph(font_face, letter, c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
         if (c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
@@ -417,7 +420,7 @@ pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtla
         glyph.extents.w = @intCast(bmp.width);
         glyph.extents.h = @intCast(bmp.rows);
         // + font_face.*.glyph.*.bitmap_top * 64
-        glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY);
+        glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY - font_face.*.ascender);
         glyph.advanceWidth = @intCast(font_face.*.glyph.*.metrics.horiAdvance);
     }
 

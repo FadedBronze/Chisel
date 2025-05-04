@@ -82,9 +82,10 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
 
     // text
     ui.primatives.addText(TextBlock{
+        .size = 12,
         .width = bounds.width,
         .color = Color.white(),
-        .font_id = 2,
+        .font_id = 0,
         .text = current_val_slice,
         .x = bounds.x,
         .y = bounds.y,
@@ -95,7 +96,8 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
     ui.primatives.addText(TextBlock{
         .width = bounds.width,
         .color = Color.white(),
-        .font_id = 2,
+        .size = 12,
+        .font_id = 0,
         .text = max_val_slice,
         .x = bounds.x,
         .y = bounds.y,
@@ -106,7 +108,8 @@ pub fn create(ui: *DebugUI, font_backend: anytype, min: f32, max: f32, value: *f
     ui.primatives.addText(TextBlock{
         .width = bounds.width,
         .color = Color.white(),
-        .font_id = 2,
+        .size = 12,
+        .font_id = 0,
         .text = label,
         .x = bounds.x,
         .y = bounds.y,

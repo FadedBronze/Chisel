@@ -78,6 +78,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
     const remaining_vertical_space = bounds.height - text_height;
 
     const text_block = Primatives.TextBlock{
+        .size = 24,
         .x = PADDING + bounds.x,
         .y = bounds.y + @divExact(remaining_vertical_space, 2),
         .width = bounds.width - PADDING * 2,
@@ -168,6 +169,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
             };
 
             const dropdown_text_tooltip = Primatives.TextBlock{
+                .size = 24,
                 .x = PADDING + bounds.x + bounds.width,
                 .y = PADDING + total_height - height,
                 .width = DROPDOWN_TOOLTIP_WIDTH - PADDING * 2,
@@ -179,6 +181,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, create_info: CreateInfo, id: 
             };
 
             const dropdown_text_block = Primatives.TextBlock{
+                .size = 24,
                 .x = PADDING + bounds.x,
                 .y = PADDING + total_height - height,
                 .width = DROPDOWN_TOOLTIP_WIDTH,

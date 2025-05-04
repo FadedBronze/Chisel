@@ -186,6 +186,7 @@ pub const TextBlock = struct {
     x: f32,
     y: f32,
     width: f32,
+    size: u16,
     text_align: TextAlign,
     text_break: TextBreak,
     font_id: u32,

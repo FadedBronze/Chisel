@@ -58,6 +58,7 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, tooltip: ?[
         .text_align = Primatives.TextAlign.Center,
         .text_break = Primatives.TextBreak.Word,
         .font_id = 0,
+        .size = 24,
     };
 
     const base = Primatives.Rectangle{
@@ -115,8 +116,9 @@ pub fn create(ui: *DebugUI, font_backend: anytype, text: []const u8, tooltip: ?[
 
         ui.primatives.deferAddText(Primatives.TextBlock{
             .text = tooltip.?,
+            .size = 18,
             .width = TOOLTIP_WIDTH,
-            .font_id = 1,
+            .font_id = 0,
             .color = Primatives.Color.white(),
             .text_align = .Left,
             .text_break = .Word,

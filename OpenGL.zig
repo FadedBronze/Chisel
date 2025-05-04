@@ -13,9 +13,12 @@ const Extents = utils.Extents;
 const SDFFontAtlas = @import("SDFFontAtlas.zig");
 
 const OpenGL = @This();
+const Renderer = @import("./Rendering.zig");
 
 const zm = @import("zm");
 
+renderer: Renderer,
+atlas: SDFFontAtlas,
 window: *c.GLFWwindow,
 screen_size: Extents,
 mouse_position: [2]f32,
@@ -23,7 +26,7 @@ scroll_offset: [2]f32,
 mouse_down: bool,
 
 vertices: union {
-    ui: [2048]Backend.Vertex,
+    ui: [2048]Renderer.Vertex,
     font: [2048]SDFFontAtlas.Vertex,
 },
 vertex_count: u32,
@@ -77,7 +80,6 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 4);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, c.GL_TRUE);
-    //c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
     const window = c.glfwCreateWindow(width_int, height_int, "Hello World", null, null);
 
@@ -119,6 +121,8 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
         .indices = undefined,
         .screen_size = Extents{ .height = height, .width = width },
         .index_count = 0,
+        .atlas = try SDFFontAtlas.create(self),
+        .renderer = try Renderer.create(self),
         .window = window.?,
         .mouse_down = false,
         .mouse_position = .{ 0, 0 },
@@ -178,38 +182,6 @@ pub fn add_shader(_: *OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_
     return shader;
 }
 
-pub fn create_backend(self: *OpenGL) !Backend {
-    const shader: u32 = try self.add_shader(Backend.VERTEX_SHADER_SOURCE, Backend.FRAGMENT_SHADER_SOURCE);
-
-    self.vertices = .{ .ui = undefined };
-
-    var vao: u32 = undefined;
-    c.__glewGenVertexArrays.?(1, &vao);
-    c.__glewBindVertexArray.?(vao);
-
-    var ebo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &ebo);
-    c.__glewBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
-    c.__glewBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * self.indices.len, null, c.GL_DYNAMIC_DRAW);
-
-    var vbo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &vbo);
-    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
-    c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Backend.Vertex) * self.vertices.ui.len, null, c.GL_DYNAMIC_DRAW);
-
-    c.__glewVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Backend.Vertex), null);
-    c.__glewVertexAttribPointer.?(1, 4, c.GL_UNSIGNED_BYTE, c.GL_TRUE, @sizeOf(Backend.Vertex), @ptrFromInt(@offsetOf(Backend.Vertex, "color")));
-
-    c.__glewEnableVertexAttribArray.?(0);
-    c.__glewEnableVertexAttribArray.?(1);
-
-    return Backend{
-        .vao = vao,
-        .opengl = self,
-        .shader = shader,
-    };
-}
-
 pub inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
     return .{
         ((vertex[0] / self.screen_size.width) * 2) - 1,
@@ -253,106 +225,3 @@ pub fn renderQuad(
     vertex_count.* += 4;
     index_count.* += 6;
 }
-
-pub const Backend = struct {
-    opengl: *OpenGL,
-    shader: u32,
-    vao: u32,
-
-    const Vertex = packed struct {
-        position: zm.Vec2f,
-        color: Primatives.Color,
-    };
-
-    const VERTEX_SHADER_SOURCE = @embedFile("shaders/base/shader.vert");
-    const FRAGMENT_SHADER_SOURCE = @embedFile("shaders/base/shader.frag");
-
-    pub fn renderQuad(self: *Backend, bounds: *const Bounds, color: Primatives.Color) void {
-        self.opengl.renderQuad(
-            &self.opengl.vertices.ui,
-            &self.opengl.vertex_count,
-            &self.opengl.indices,
-            &self.opengl.index_count,
-            bounds,
-        );
-
-        for (0..4) |i| {
-            self.opengl.vertices.ui[self.opengl.vertex_count - 4 + i].color = color;
-        }
-    }
-
-    pub fn render(self: *Backend, primatives: *const Primatives) !void {
-        c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
-
-        self.opengl.vertices = .{ .ui = undefined };
-        self.opengl.vertex_count = 0;
-        self.opengl.index_count = 0;
-        self.opengl.indices = undefined;
-
-        var i: usize = 0;
-        while (i < primatives.clip_count) : (i += 1) {
-            const rectangle_start = primatives.clips[i].rectangles_start;
-            const rectangle_end = primatives.clips[i].rectangles_end;
-            //const text_start = primatives.clips[i].text_start;
-            //const text_end = primatives.clips[i].text_end;
-
-            for (primatives.rectangles[rectangle_start..rectangle_end]) |rectangle| {
-                const bounds = (&Bounds{
-                    .height = rectangle.height,
-                    .width = rectangle.width,
-                    .x = rectangle.x,
-                    .y = rectangle.y,
-                }).clip(&primatives.clips[i].bounds);
-
-                self.renderQuad(&bounds, rectangle.color);
-            }
-        }
-
-        for (primatives.rectangles[primatives.defer_rectangles_offset..primatives.rectangles.len]) |rectangle| {
-            const bounds = Bounds{
-                .height = rectangle.height,
-                .width = rectangle.width,
-                .x = rectangle.x,
-                .y = rectangle.y,
-            };
-
-            self.renderQuad(&bounds, rectangle.color);
-        }
-
-        c.__glewBindVertexArray.?(self.vao);
-        c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * self.opengl.vertex_count, &self.opengl.vertices.ui);
-        c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * self.opengl.index_count, &self.opengl.indices);
-
-        c.__glewUseProgram.?(self.shader);
-
-        c.glDrawElements(c.GL_TRIANGLES, @intCast(self.opengl.index_count), c.GL_UNSIGNED_INT, null);
-
-        c.glfwSwapBuffers(self.opengl.window);
-
-        self.opengl.scroll_offset = .{ 0, 0 };
-    }
-
-    pub fn updateSize(self: *Backend, width: f32, height: f32) void {
-        self.window_size[0] = width;
-        self.window_size[1] = height;
-    }
-
-    pub fn getEvents(self: *Backend) InputEventInfo {
-        c.glfwPollEvents();
-
-        return InputEventInfo{
-            .flags = .{
-                .quit = c.glfwWindowShouldClose(self.opengl.window) == c.GLFW_TRUE,
-                .mouse_down = self.opengl.mouse_down,
-                ._padding = 0,
-            },
-            .mouse_x = self.opengl.mouse_position[0],
-            .mouse_y = self.opengl.mouse_position[1],
-            .scroll_x = self.opengl.scroll_offset[0],
-            .scroll_y = self.opengl.scroll_offset[1],
-            .input_keys = undefined,
-            .input_keys_count = 0,
-        };
-    }
-};
