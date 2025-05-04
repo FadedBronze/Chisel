@@ -18,6 +18,7 @@ const std = @import("std");
 const zm = @import("zm");
 
 const SDL2Backend = @import("SDL2Backend.zig");
+const SDFFontAtlas = @import("SDFFontAtlas.zig");
 const OpenGLBackend = @import("OpenGLBackend.zig");
 const OpenGL = @import("OpenGL.zig");
 const DebugUI = @import("DebugUI.zig");
@@ -40,6 +41,8 @@ const InputCreateInfo = TextInput.InputCreateInfo;
 const Element = DebugUI.Element;
 
 const c = @cImport({
+    @cInclude("GL/glew.h");
+    @cInclude("GLFW/glfw3.h");
     @cInclude("freetype2/freetype/freetype.h");
     @cInclude("stb_image_write.h");
 });
@@ -348,6 +351,25 @@ pub fn main() !void {
     var running = true;
 
     while (running) {
+        //c.glClearColor(0.0, 0.0, 0.0, 1.0);
+        //c.glClear(c.GL_COLOR_BUFFER_BIT);
+
+        //try app.opengl.atlas.renderText(&app.opengl, &[_]Primatives.TextBlock{
+        //    .{
+        //        .x = 40.0,
+        //        .y = 40.0,
+        //        .size = 24.0,
+        //        .width = 400.0,
+        //        .text_align = .Right,
+        //        .text_break = .Word,
+        //        .color = Primatives.Color.white(),
+        //        .font_id = 0,
+        //        .text = "This_is_zigging_it.",
+        //    },
+        //});
+
+        //c.glfwSwapBuffers(@ptrCast(app.opengl.window));
+
         app.run() catch |err| {
             if (err == error.Quit) running = false;
         };

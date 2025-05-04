@@ -65,7 +65,6 @@ const MAX_GLYPHS = roundDownToPow2(GLYPHS_PER_EXTENT * GLYPHS_PER_EXTENT) - 1;
 rendered_glyphs: [MAX_GLYPHS]GlyphAtlasRecord,
 glyph_count: u16,
 currentEviction: u16,
-opengl: *OpenGL,
 atlas_texture: u32,
 free_type: c.FT_Library,
 faces: [FONTS.len]c.FT_Face,
@@ -210,14 +209,13 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
         .currentEviction = 0,
         .faces = faces,
         .atlas_texture = atlas_texture,
-        .opengl = opengl,
         .free_type = free_type,
         .shader = shader,
         .vao = vao,
     };
 }
 
-pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, position: zm.Vec2f, scale: u32) !u32 {
+pub fn drawCharacter(self: *SDFFontAtlas, opengl: *OpenGL, characterCode: u32, fontId: u32, position: zm.Vec2f, scale: u32) !u32 {
     const glyph = try self.getGlyph(characterCode, fontId);
 
     const scaled_advance_width = @as(f32, @floatFromInt(glyph.advanceWidth)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
@@ -242,18 +240,18 @@ pub fn drawCharacter(self: *SDFFontAtlas, characterCode: u32, fontId: u32, posit
         .height = scaled_height,
     };
 
-    self.opengl.renderQuad(
-        &self.opengl.vertices.font,
-        &self.opengl.vertex_count,
-        &self.opengl.indices,
-        &self.opengl.index_count,
+    opengl.renderQuad(
+        &opengl.vertices.font,
+        &opengl.vertex_count,
+        &opengl.indices,
+        &opengl.index_count,
         &quad,
     );
 
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 0].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
-    self.opengl.vertices.font[self.opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
+    opengl.vertices.font[opengl.vertex_count - 4 + 0].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
+    opengl.vertices.font[opengl.vertex_count - 4 + 1].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, f32_y / ATLAS_SIDE_LENGTH };
+    opengl.vertices.font[opengl.vertex_count - 4 + 2].texCoords = zm.Vec2f{ (f32_x + f32_width) / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
+    opengl.vertices.font[opengl.vertex_count - 4 + 3].texCoords = zm.Vec2f{ f32_x / ATLAS_SIDE_LENGTH, (f32_y + f32_height) / ATLAS_SIDE_LENGTH };
 
     return @intFromFloat(scaled_advance_width);
 }
@@ -325,17 +323,17 @@ pub fn getRequiredLinesToFitWords(self: *const SDFFontAtlas, font_id: u32, width
     return lines;
 }
 
-pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock) !void {
-    self.opengl.vertices = .{ .font = undefined };
-    self.opengl.vertex_count = 0;
-    self.opengl.index_count = 0;
+pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Primatives.TextBlock) !void {
+    opengl.vertices = .{ .font = undefined };
+    opengl.vertex_count = 0;
+    opengl.index_count = 0;
 
     var offset: f32 = 0;
 
     for (text_blocks) |text_block| {
         const font_id = text_block.font_id;
 
-        offset += @floatFromInt(try self.drawCharacter(text_block.text[0], font_id, .{ 40.0, 40.0 }, text_block.size));
+        offset += @floatFromInt(try self.drawCharacter(opengl, text_block.text[0], font_id, .{ 40.0, 40.0 }, text_block.size));
 
         for (1..text_block.text.len) |i| {
             const char = text_block.text[i - 1];
@@ -350,7 +348,7 @@ pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock
             const scaled_kerning: f32 = @as(f32, @floatFromInt(kerning.x)) / 64 * @as(f32, @floatFromInt(text_block.size));
             const scaled_kerning_y: f32 = @as(f32, @floatFromInt(kerning.y)) / 64 * @as(f32, @floatFromInt(text_block.size));
 
-            offset += @floatFromInt(try self.drawCharacter(next_char, font_id, .{ 40.0 + offset + scaled_kerning, 40.0 + scaled_kerning_y }, text_block.size));
+            offset += @floatFromInt(try self.drawCharacter(opengl, next_char, font_id, .{ 40.0 + offset + scaled_kerning, 40.0 + scaled_kerning_y }, text_block.size));
         }
     }
 
@@ -361,12 +359,10 @@ pub fn renderText(self: *SDFFontAtlas, text_blocks: []const Primatives.TextBlock
     c.__glewUniform1i.?(location, 0);
 
     c.__glewBindVertexArray.?(self.vao);
-    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * self.opengl.vertex_count, &self.opengl.vertices.font);
-    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * self.opengl.index_count, &self.opengl.indices);
+    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * opengl.vertex_count, &opengl.vertices.font);
+    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * opengl.index_count, &opengl.indices);
 
-    c.glDrawElements(c.GL_TRIANGLES, @intCast(self.opengl.index_count), c.GL_UNSIGNED_INT, null);
-
-    c.glfwSwapBuffers(@ptrCast(self.opengl.window));
+    c.glDrawElements(c.GL_TRIANGLES, @intCast(opengl.index_count), c.GL_UNSIGNED_INT, null);
 }
 
 pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtlasRecord {

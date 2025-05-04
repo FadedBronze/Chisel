@@ -72,41 +72,19 @@ pub fn renderQuad(opengl: *OpenGL, bounds: *const Bounds, color: Primatives.Colo
     }
 }
 
-pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, primatives: *const Primatives) !void {
-    c.glClearColor(0.0, 0.0, 0.0, 1.0);
-    c.glClear(c.GL_COLOR_BUFFER_BIT);
-
+pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, rectangles: []const Primatives.Rectangle, current_clip_bounds: utils.Bounds) !void {
     opengl.vertices = .{ .ui = undefined };
     opengl.vertex_count = 0;
     opengl.index_count = 0;
     opengl.indices = undefined;
 
-    var i: usize = 0;
-    while (i < primatives.clip_count) : (i += 1) {
-        const rectangle_start = primatives.clips[i].rectangles_start;
-        const rectangle_end = primatives.clips[i].rectangles_end;
-        //const text_start = primatives.clips[i].text_start;
-        //const text_end = primatives.clips[i].text_end;
-
-        for (primatives.rectangles[rectangle_start..rectangle_end]) |rectangle| {
-            const bounds = (&Bounds{
-                .height = rectangle.height,
-                .width = rectangle.width,
-                .x = rectangle.x,
-                .y = rectangle.y,
-            }).clip(&primatives.clips[i].bounds);
-
-            renderQuad(opengl, &bounds, rectangle.color);
-        }
-    }
-
-    for (primatives.rectangles[primatives.defer_rectangles_offset..primatives.rectangles.len]) |rectangle| {
-        const bounds = Bounds{
+    for (rectangles) |rectangle| {
+        const bounds = (&Bounds{
             .height = rectangle.height,
             .width = rectangle.width,
             .x = rectangle.x,
             .y = rectangle.y,
-        };
+        }).clip(&current_clip_bounds);
 
         renderQuad(opengl, &bounds, rectangle.color);
     }
@@ -118,8 +96,6 @@ pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, primatives: *const Pri
     c.__glewUseProgram.?(self.shader);
 
     c.glDrawElements(c.GL_TRIANGLES, @intCast(opengl.index_count), c.GL_UNSIGNED_INT, null);
-
-    c.glfwSwapBuffers(opengl.window);
 
     opengl.scroll_offset = .{ 0, 0 };
 }

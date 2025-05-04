@@ -121,13 +121,16 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
         .indices = undefined,
         .screen_size = Extents{ .height = height, .width = width },
         .index_count = 0,
-        .atlas = try SDFFontAtlas.create(self),
-        .renderer = try Renderer.create(self),
         .window = window.?,
         .mouse_down = false,
         .mouse_position = .{ 0, 0 },
         .scroll_offset = .{ 0, 0 },
+        .renderer = undefined,
+        .atlas = undefined,
     };
+
+    self.renderer = try Renderer.create(self);
+    self.atlas = try SDFFontAtlas.create(self);
 }
 
 pub fn destroy(_: *OpenGL) void {
