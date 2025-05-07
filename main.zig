@@ -229,23 +229,23 @@ const App = struct {
 
         //generate_gui(SomeObject, &self.test_gui_handles.some_object, &self.debug_ui, self.sdl2_backend, 425, 20, 450, 200);
 
-        {
-            Frame.start(&self.debug_ui, 20, 630);
-            FlexStrip.start(&self.debug_ui, Extents{
-                .width = 700,
-                .height = 50,
-            }, FlexStrip.Direction.Row, true);
-            Scroll.start(&self.debug_ui, "12333203");
+        //{
+        //    Frame.start(&self.debug_ui, 20, 630);
+        //    FlexStrip.start(&self.debug_ui, Extents{
+        //        .width = 700,
+        //        .height = 50,
+        //    }, FlexStrip.Direction.Row, true);
+        //    Scroll.start(&self.debug_ui, "12333203");
 
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3223413");
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3324241");
-            Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", "3242322");
-            _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3232441");
+        //    _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3223413");
+        //    _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3324241");
+        //    Slider.create(&self.debug_ui, self.sdl2_backend, 5, 20, &self.test_gui_handles.slider_value2, "Wowzers", "3242322");
+        //    _ = Button.create(&self.debug_ui, self.sdl2_backend, self.test_gui_handles.hello_button.text, self.test_gui_handles.hello_button.more_text, "3232441");
 
-            Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, "12333203");
-            FlexStrip.end(&self.debug_ui);
-            Frame.end(&self.debug_ui);
-        }
+        //    Scroll.end(&self.debug_ui, Scroll.Mode.Smooth, "12333203");
+        //    FlexStrip.end(&self.debug_ui);
+        //    Frame.end(&self.debug_ui);
+        //}
 
         {
             Frame.start(&self.debug_ui, 20, 20);
@@ -351,25 +351,6 @@ pub fn main() !void {
     var running = true;
 
     while (running) {
-        //c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        //c.glClear(c.GL_COLOR_BUFFER_BIT);
-
-        //try app.opengl.atlas.renderText(&app.opengl, &[_]Primatives.TextBlock{
-        //    .{
-        //        .x = 40.0,
-        //        .y = 40.0,
-        //        .size = 24.0,
-        //        .width = 400.0,
-        //        .text_align = .Right,
-        //        .text_break = .Word,
-        //        .color = Primatives.Color.white(),
-        //        .font_id = 0,
-        //        .text = "This_is_zigging_it.",
-        //    },
-        //});
-
-        //c.glfwSwapBuffers(@ptrCast(app.opengl.window));
-
         app.run() catch |err| {
             if (err == error.Quit) running = false;
         };

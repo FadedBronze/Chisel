@@ -53,8 +53,8 @@ pub const Vertex = struct {
 const VERTICES = 2048;
 const INDICIES = 4096;
 
-const GLYPH_SIZE = 32;
-const ATLAS_SIDE_LENGTH = 256;
+const GLYPH_SIZE = 64;
+const ATLAS_SIDE_LENGTH = 512;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
 fn roundDownToPow2(n: u32) u32 {
@@ -343,22 +343,26 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
     for (text_blocks) |text_block| {
         const font_id = text_block.font_id;
 
-        offset += @floatFromInt(try self.drawCharacter(opengl, text_block.text[0], font_id, .{ 40.0, 40.0 }, text_block.size, &vertices, &indices, &vertex_count, &index_count));
+        offset += @floatFromInt(try self.drawCharacter(opengl, text_block.text[0], font_id, .{ text_block.x, text_block.y }, text_block.size, &vertices, &indices, &vertex_count, &index_count));
 
         for (1..text_block.text.len) |i| {
-            const char = text_block.text[i - 1];
+            //const char = text_block.text[i - 1];
             const next_char = text_block.text[i];
 
-            const char_index = c.FT_Get_Char_Index(self.faces[font_id], char);
-            const next_char_index = c.FT_Get_Char_Index(self.faces[font_id], next_char);
+            //const char_index = c.FT_Get_Char_Index(self.faces[font_id], char);
+            //const next_char_index = c.FT_Get_Char_Index(self.faces[font_id], next_char);
 
-            var kerning: c.FT_Vector = undefined;
-
-            if (c.FT_Get_Kerning(self.faces[font_id], char_index, next_char_index, c.FT_KERNING_DEFAULT, &kerning) != c.FT_Err_Ok) return error.KerningRequestFailed;
-            const scaled_kerning: f32 = @as(f32, @floatFromInt(kerning.x)) / 64 * @as(f32, @floatFromInt(text_block.size));
-            const scaled_kerning_y: f32 = @as(f32, @floatFromInt(kerning.y)) / 64 * @as(f32, @floatFromInt(text_block.size));
-
-            offset += @floatFromInt(try self.drawCharacter(opengl, next_char, font_id, .{ 40.0 + offset + scaled_kerning, 40.0 + scaled_kerning_y }, text_block.size, &vertices, &indices, &vertex_count, &index_count));
+            offset += @floatFromInt(try self.drawCharacter(
+                opengl,
+                next_char,
+                font_id,
+                .{ text_block.x + offset, text_block.y },
+                text_block.size,
+                &vertices,
+                &indices,
+                &vertex_count,
+                &index_count,
+            ));
         }
     }
 
@@ -432,10 +436,12 @@ pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtla
             bmp.buffer,
         );
 
+        const height = font_face.*.bbox.yMax - font_face.*.bbox.yMin;
+
         glyph.extents.w = @intCast(bmp.width);
         glyph.extents.h = @intCast(bmp.rows);
         // + font_face.*.glyph.*.bitmap_top * 64
-        glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY - font_face.*.ascender);
+        glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY - font_face.*.ascender - @divTrunc(height, 2));
         glyph.advanceWidth = @intCast(font_face.*.glyph.*.metrics.horiAdvance);
     }
 
