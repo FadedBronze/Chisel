@@ -54,7 +54,7 @@ const VERTICES = 2048;
 const INDICIES = 4096;
 
 const GLYPH_SIZE = 64;
-const ATLAS_SIDE_LENGTH = 512;
+const ATLAS_SIDE_LENGTH = 256;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
 fn roundDownToPow2(n: u32) u32 {
@@ -228,10 +228,6 @@ pub fn drawCharacter(self: *SDFFontAtlas, opengl: *OpenGL, characterCode: u32, f
 
     const scaled_advance_width = @as(f32, @floatFromInt(glyph.advanceWidth)) / (GLYPH_SIZE * 64) * @as(f32, @floatFromInt(scale));
 
-    if (characterCode == ' ') {
-        return @intFromFloat(scaled_advance_width - 1);
-    }
-
     const f32_x: f32 = @as(f32, @floatFromInt(glyph.position.x)) * GLYPH_SIZE;
     const f32_y: f32 = @as(f32, @floatFromInt(glyph.position.y)) * GLYPH_SIZE;
     const f32_width: f32 = @floatFromInt(glyph.extents.w);
@@ -354,7 +350,7 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
 
             offset += @floatFromInt(try self.drawCharacter(
                 opengl,
-                next_char,
+                if (next_char == ' ') '_' else next_char,
                 font_id,
                 .{ text_block.x + offset, text_block.y },
                 text_block.size,
@@ -389,20 +385,6 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
 }
 
 pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtlasRecord {
-    if (characterCode == ' ') {
-        if (c.FT_Load_Glyph(self.faces[fontId], ' ', c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
-        const glyph = self.faces[fontId].*.glyph.*;
-
-        return GlyphAtlasRecord{
-            .advanceWidth = @intCast(glyph.metrics.horiAdvance),
-            .baseline = 0,
-            .extents = .{ .w = 0, .h = 0 },
-            .fontId = fontId,
-            .characterCode = characterCode,
-            .position = .{ .x = std.math.maxInt(u16), .y = std.math.maxInt(u16) },
-        };
-    }
-
     const isTransfer = self.updateLruGlyph(characterCode, fontId);
     const glyph: *GlyphAtlasRecord = &self.rendered_glyphs[0];
 

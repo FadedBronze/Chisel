@@ -346,13 +346,32 @@ const App = struct {
 };
 
 pub fn main() !void {
-    var app = try App.create();
+    //var app = try App.create();
+
+    var opengl: OpenGL = undefined;
+    var opengl_backend: OpenGLBackend = try OpenGLBackend.create(&opengl, 800, 800);
 
     var running = true;
-
     while (running) {
-        app.run() catch |err| {
-            if (err == error.Quit) running = false;
-        };
+        running = !opengl_backend.getEvents().flags.quit;
+
+        try opengl.atlas.renderText(&opengl, &[_]Primatives.TextBlock{
+            Primatives.TextBlock{
+                .color = Primatives.Color.white(),
+                .size = 24,
+                .x = 0,
+                .y = 0,
+                .width = 300,
+                .font_id = 0,
+                //abcdefghijklmnopqrstuvwxyz
+                .text = "world",
+                .text_align = .Left,
+                .text_break = .Word,
+            },
+        });
+
+        //app.run() catch |err| {
+        //    if (err == error.Quit) running = false;
+        //};
     }
 }
