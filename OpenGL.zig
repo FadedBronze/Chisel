@@ -25,15 +25,6 @@ mouse_position: [2]f32,
 scroll_offset: [2]f32,
 mouse_down: bool,
 
-vertices: union {
-    ui: [2048]Renderer.Vertex,
-    font: [2048]SDFFontAtlas.Vertex,
-},
-vertex_count: u32,
-
-indices: [4096]u32,
-index_count: u32,
-
 pub fn cursorPositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     const opengl: *OpenGL = @alignCast(@ptrCast(c.glfwGetWindowUserPointer(window)));
     opengl.mouse_position = [2]f32{ @floatCast(xpos), @floatCast(ypos) };
@@ -116,11 +107,7 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     c.__glewDebugMessageCallback.?(debugCallback, null);
 
     self.* = OpenGL{
-        .vertices = undefined,
-        .vertex_count = 0,
-        .indices = undefined,
         .screen_size = Extents{ .height = height, .width = width },
-        .index_count = 0,
         .window = window.?,
         .mouse_down = false,
         .mouse_position = .{ 0, 0 },
@@ -181,6 +168,8 @@ pub fn add_shader(_: *OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_
         std.debug.print("Shader Program Linking Error:\n{s}", .{infoLog});
         return error.ShaderLinkingFailed;
     }
+
+    c.__glewUseProgram.?(0);
 
     return shader;
 }

@@ -27,10 +27,11 @@ pub const Vertex = packed struct {
 const VERTEX_SHADER_SOURCE = @embedFile("shaders/base/shader.vert");
 const FRAGMENT_SHADER_SOURCE = @embedFile("shaders/base/shader.frag");
 
+const VERTICES = 2048;
+const INDICIES = 4096;
+
 pub fn create(opengl: *OpenGL) !Renderer {
     const shader: u32 = try opengl.add_shader(Renderer.VERTEX_SHADER_SOURCE, Renderer.FRAGMENT_SHADER_SOURCE);
-
-    opengl.vertices = .{ .ui = undefined };
 
     var vao: u32 = undefined;
     c.__glewGenVertexArrays.?(1, &vao);
@@ -39,12 +40,12 @@ pub fn create(opengl: *OpenGL) !Renderer {
     var ebo: u32 = undefined;
     c.__glewGenBuffers.?(1, &ebo);
     c.__glewBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
-    c.__glewBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * opengl.indices.len, null, c.GL_DYNAMIC_DRAW);
+    c.__glewBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * INDICIES, null, c.GL_DYNAMIC_DRAW);
 
     var vbo: u32 = undefined;
     c.__glewGenBuffers.?(1, &vbo);
     c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
-    c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Renderer.Vertex) * opengl.vertices.ui.len, null, c.GL_DYNAMIC_DRAW);
+    c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Renderer.Vertex) * VERTICES, null, c.GL_DYNAMIC_DRAW);
 
     c.__glewVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Renderer.Vertex), null);
     c.__glewVertexAttribPointer.?(1, 4, c.GL_UNSIGNED_BYTE, c.GL_TRUE, @sizeOf(Renderer.Vertex), @ptrFromInt(@offsetOf(Renderer.Vertex, "color")));
@@ -52,31 +53,20 @@ pub fn create(opengl: *OpenGL) !Renderer {
     c.__glewEnableVertexAttribArray.?(0);
     c.__glewEnableVertexAttribArray.?(1);
 
+    c.__glewBindVertexArray.?(0);
+
     return Renderer{
         .vao = vao,
         .shader = shader,
     };
 }
 
-pub fn renderQuad(opengl: *OpenGL, bounds: *const Bounds, color: Primatives.Color) void {
-    opengl.renderQuad(
-        &opengl.vertices.ui,
-        &opengl.vertex_count,
-        &opengl.indices,
-        &opengl.index_count,
-        bounds,
-    );
-
-    for (0..4) |i| {
-        opengl.vertices.ui[opengl.vertex_count - 4 + i].color = color;
-    }
-}
-
 pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, rectangles: []const Primatives.Rectangle, current_clip_bounds: utils.Bounds) !void {
-    opengl.vertices = .{ .ui = undefined };
-    opengl.vertex_count = 0;
-    opengl.index_count = 0;
-    opengl.indices = undefined;
+    var vertices: [VERTICES]Renderer.Vertex = undefined;
+    var vertex_count: u32 = 0;
+
+    var indices: [INDICIES]u32 = undefined;
+    var index_count: u32 = 0;
 
     for (rectangles) |rectangle| {
         const bounds = (&Bounds{
@@ -86,16 +76,33 @@ pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, rectangles: []const Pr
             .y = rectangle.y,
         }).clip(&current_clip_bounds);
 
-        renderQuad(opengl, &bounds, rectangle.color);
+        opengl.renderQuad(
+            &vertices,
+            &vertex_count,
+            &indices,
+            &index_count,
+            &bounds,
+        );
+
+        for (0..4) |i| {
+            vertices[vertex_count - 4 + i].color = rectangle.color;
+        }
     }
 
+    // vao
     c.__glewBindVertexArray.?(self.vao);
-    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * opengl.vertex_count, &opengl.vertices.ui);
-    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * opengl.index_count, &opengl.indices);
+    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
+    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
 
+    // shader
     c.__glewUseProgram.?(self.shader);
 
-    c.glDrawElements(c.GL_TRIANGLES, @intCast(opengl.index_count), c.GL_UNSIGNED_INT, null);
+    // draw
+    c.glDrawElements(c.GL_TRIANGLES, @intCast(index_count), c.GL_UNSIGNED_INT, null);
+
+    // unbind
+    c.__glewUseProgram.?(0);
+    c.__glewBindVertexArray.?(0);
 
     opengl.scroll_offset = .{ 0, 0 };
 }
