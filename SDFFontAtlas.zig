@@ -73,6 +73,7 @@ free_type: c.FT_Library,
 faces: [FONTS.len]c.FT_Face,
 shader: u32,
 vao: u32,
+vbo: u32,
 
 pub fn updateLruGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) bool {
     var foundGlyphIndex: i64 = -1;
@@ -218,6 +219,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
         .free_type = free_type,
         .shader = shader,
         .vao = vao,
+        .vbo = vbo,
     };
 }
 
@@ -370,6 +372,7 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
 
     // vao
     c.__glewBindVertexArray.?(self.vao);
+    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
     c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
     c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
 

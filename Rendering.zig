@@ -18,6 +18,7 @@ const Renderer = @This();
 
 shader: u32,
 vao: u32,
+vbo: u32,
 
 pub const Vertex = packed struct {
     position: zm.Vec2f,
@@ -57,6 +58,7 @@ pub fn create(opengl: *OpenGL) !Renderer {
 
     return Renderer{
         .vao = vao,
+        .vbo = vbo,
         .shader = shader,
     };
 }
@@ -91,6 +93,7 @@ pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, rectangles: []const Pr
 
     // vao
     c.__glewBindVertexArray.?(self.vao);
+    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
     c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
     c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
 
