@@ -53,8 +53,8 @@ pub const Vertex = struct {
 const VERTICES = 2048;
 const INDICIES = 4096;
 
-const GLYPH_SIZE = 64;
-const ATLAS_SIDE_LENGTH = 256;
+const GLYPH_SIZE = 50;
+const ATLAS_SIDE_LENGTH = GLYPH_SIZE * 8;
 const GLYPHS_PER_EXTENT = ATLAS_SIDE_LENGTH / GLYPH_SIZE;
 
 fn roundDownToPow2(n: u32) u32 {
@@ -394,7 +394,7 @@ pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtla
 
         const letter = c.FT_Get_Char_Index(font_face, characterCode);
 
-        if (c.FT_Set_Pixel_Sizes(font_face, GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
+        if (c.FT_Set_Pixel_Sizes(font_face, @intFromFloat(GLYPH_SIZE * 0.9), @intFromFloat(GLYPH_SIZE * 0.9)) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
         if (c.FT_Load_Glyph(font_face, letter, c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
         if (c.FT_Render_Glyph(font_face.*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
@@ -422,6 +422,9 @@ pub fn getGlyph(self: *SDFFontAtlas, characterCode: u32, fontId: u32) !GlyphAtla
 
         glyph.extents.w = @intCast(bmp.width);
         glyph.extents.h = @intCast(bmp.rows);
+
+        std.debug.print("{} {}\n", .{ bmp.width, bmp.rows });
+
         // + font_face.*.glyph.*.bitmap_top * 64
         glyph.baseline = @intCast(font_face.*.glyph.*.metrics.horiBearingY - font_face.*.ascender - @divTrunc(height, 2));
         glyph.advanceWidth = @intCast(font_face.*.glyph.*.metrics.horiAdvance);

@@ -7,7 +7,7 @@ uniform sampler2D tex;
 
 void main()
 {
-    float smoothness = 0.03;
+    float smoothness = 0.12;
 
     float sdf = texture(tex, texCoord).r;
     float color = smoothstep(0.5-smoothness, 0.5+smoothness, sdf);
