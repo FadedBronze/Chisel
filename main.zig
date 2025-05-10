@@ -346,39 +346,39 @@ const App = struct {
 };
 
 pub fn main() !void {
-    //var app = try App.create();
-
-    //var running = true;
-    //while (running) {
-    //    app.run() catch |err| {
-    //        if (err == error.Quit) running = false;
-    //    };
-    //}
-
-    var opengl: OpenGL = undefined;
-    var opengl_backend: OpenGLBackend = try OpenGLBackend.create(&opengl, 800, 800);
+    var app = try App.create();
 
     var running = true;
     while (running) {
-        running = !opengl_backend.getEvents().flags.quit;
-
-        c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
-
-        try opengl.atlas.renderText(&opengl, &[_]Primatives.TextBlock{
-            Primatives.TextBlock{
-                .color = Primatives.Color.white(),
-                .size = 24,
-                .x = 0,
-                .y = 0,
-                .width = 300,
-                .font_id = 0,
-                .text = "abcdefghijklmnopqrstuvwxyz",
-                .text_align = .Left,
-                .text_break = .Word,
-            },
-        });
-
-        c.glfwSwapBuffers(@ptrCast(opengl.window));
+        app.run() catch |err| {
+            if (err == error.Quit) running = false;
+        };
     }
+
+    //var opengl: OpenGL = undefined;
+    //var opengl_backend: OpenGLBackend = try OpenGLBackend.create(&opengl, 800, 800);
+
+    //var running = true;
+    //while (running) {
+    //    running = !opengl_backend.getEvents().flags.quit;
+
+    //    c.glClearColor(0.0, 0.0, 0.0, 1.0);
+    //    c.glClear(c.GL_COLOR_BUFFER_BIT);
+
+    //    try opengl.atlas.renderText(&opengl, &[_]Primatives.TextBlock{
+    //        Primatives.TextBlock{
+    //            .color = Primatives.Color.white(),
+    //            .size = 24,
+    //            .x = 0,
+    //            .y = 0,
+    //            .width = 300,
+    //            .font_id = 0,
+    //            .text = "abcdefghijklmnopqrstuvwxyz",
+    //            .text_align = .Left,
+    //            .text_break = .Word,
+    //        },
+    //    });
+
+    //    c.glfwSwapBuffers(@ptrCast(opengl.window));
+    //}
 }

@@ -132,10 +132,6 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
                 x_offset = 0;
             }
 
-            if (char == 'a') {
-                std.debug.print("{} {}\n", .{ bitmap.width, bitmap.rows });
-            }
-
             c.glTexSubImage2D(
                 c.GL_TEXTURE_2D,
                 0,
@@ -148,9 +144,11 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
                 bitmap.buffer,
             );
 
+            const height = faces[i].*.bbox.yMax - faces[i].*.bbox.yMin;
+
             glyph_list[i * FONTS.len + j] = Glyph{
                 .advance_width = @intCast(faces[i].*.glyph.*.metrics.horiAdvance),
-                .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY),
+                .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY - faces[i].*.ascender - @divTrunc(height, 2)),
                 .character_code = char,
                 .font_id = @intCast(i),
                 .tex_x = x_offset,
@@ -234,7 +232,9 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
         var offset = text_block.x;
 
         for (text_block.text) |char| {
-            const glyph = try self.getGlyph(char, @intCast(text_block.font_id));
+            if (char == 0) continue;
+
+            const glyph = try self.getGlyph(if (char == ' ') '_' else char, @intCast(text_block.font_id));
 
             const scale_x: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
             const scale_y: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
@@ -250,24 +250,24 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
             const tex_width = @as(f32, @floatFromInt(glyph.width)) / ATLAS_SIZE;
             const tex_height = @as(f32, @floatFromInt(glyph.height)) / ATLAS_SIZE;
 
-            offset += advance_width;
-
             vertices[vertex_count] = Vertex{
                 .texCoords = .{ tex_x, tex_y },
-                .position = opengl.translateNDC(.{ offset, text_block.y + baseline_offset }),
+                .position = opengl.translateNDC(.{ offset, text_block.y - baseline_offset }),
             };
             vertices[vertex_count + 1] = Vertex{
                 .texCoords = .{ tex_x + tex_width, tex_y },
-                .position = opengl.translateNDC(.{ offset + width, text_block.y + baseline_offset }),
+                .position = opengl.translateNDC(.{ offset + width, text_block.y - baseline_offset }),
             };
             vertices[vertex_count + 2] = Vertex{
                 .texCoords = .{ tex_x + tex_width, tex_y + tex_height },
-                .position = opengl.translateNDC(.{ offset + width, text_block.y + height + baseline_offset }),
+                .position = opengl.translateNDC(.{ offset + width, text_block.y + height - baseline_offset }),
             };
             vertices[vertex_count + 3] = Vertex{
                 .texCoords = .{ tex_x, tex_y + tex_height },
-                .position = opengl.translateNDC(.{ offset, text_block.y + height + baseline_offset }),
+                .position = opengl.translateNDC(.{ offset, text_block.y + height - baseline_offset }),
             };
+
+            offset += advance_width;
 
             indices[index_count] = vertex_count;
             indices[index_count + 1] = vertex_count + 1;
