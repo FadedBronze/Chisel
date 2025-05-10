@@ -368,7 +368,7 @@ pub fn main() !void {
     //    try opengl.atlas.renderText(&opengl, &[_]Primatives.TextBlock{
     //        Primatives.TextBlock{
     //            .color = Primatives.Color.white(),
-    //            .size = 24,
+    //            .size = 48,
     //            .x = 0,
     //            .y = 0,
     //            .width = 300,

@@ -33,6 +33,7 @@ pub const Vertex = struct {
 
 const Glyph = packed struct {
     advance_width: u16,
+    lsb: i16,
     baseline_offset: i16,
     character_code: u16,
     font_id: u16,
@@ -40,6 +41,7 @@ const Glyph = packed struct {
     height: u16,
     tex_x: u16,
     tex_y: u16,
+    _padding: u48,
 };
 
 const VERTICES = 2048;
@@ -148,13 +150,15 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
 
             glyph_list[i * FONTS.len + j] = Glyph{
                 .advance_width = @intCast(faces[i].*.glyph.*.metrics.horiAdvance),
-                .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY - faces[i].*.ascender - @divTrunc(height, 2)),
+                .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY - faces[i].*.ascender + @divTrunc(height, 4)),
                 .character_code = char,
                 .font_id = @intCast(i),
                 .tex_x = x_offset,
                 .tex_y = y_offset,
                 .height = @intCast(bitmap.rows),
                 .width = @intCast(bitmap.width),
+                .lsb = @intCast(faces[i].*.glyph.*.metrics.horiBearingX),
+                ._padding = 0,
             };
 
             max_height = @max(@as(u16, @intCast(bitmap.rows)), max_height);
@@ -231,10 +235,12 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
     for (text_blocks) |text_block| {
         var offset = text_block.x;
 
-        for (text_block.text) |char| {
+        for (text_block.text, 0..) |char, i| {
             if (char == 0) continue;
 
             const glyph = try self.getGlyph(if (char == ' ') '_' else char, @intCast(text_block.font_id));
+
+            if (i == 0) offset -= @as(f32, @floatFromInt(glyph.lsb)) / 32;
 
             const scale_x: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
             const scale_y: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
