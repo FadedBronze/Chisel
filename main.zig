@@ -373,7 +373,8 @@ pub fn main() !void {
                 .y = 0,
                 .width = 300,
                 .font_id = 0,
-                .text = "abcdefghijklmnopqrstuvwxyz",
+                //bcdefghijklmnopqrstuvwxyz
+                .text = "a",
                 .text_align = .Left,
                 .text_break = .Word,
             },
