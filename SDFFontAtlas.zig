@@ -48,26 +48,22 @@ const VERTICES = 2048;
 const INDICIES = 4096;
 
 const CHARACTERS = [_]u8{
-    //'\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07',
-    //'\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F',
-    //'\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
-    //'\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F',
-    //' ',
-    'a', 'b', 'c', 'd', 'e', 'f',
-    'g', 'h', 'i', 'j', 'k', 'l',
-    'm', 'n', 'o', 'p', 'q', 'r',
-    's', 't', 'u', 'v', 'w',
-    'x', 'y', 'z', '{',  '|', '}', '~', // '\x7F'
-    '!', '"', '#', '$',  '%', '&', '\'',
-    '(', ')', '*', '+',  ',', '-', '.',
-    '/', '0', '1', '2',  '3', '4', '5',
-    '6', '7', '8', '9',  ':', ';', '<',
-    '=', '>', '?', '@',  'A', 'B', 'C',
-    'D', 'E', 'F', 'G',  'H', 'I', 'J',
-    'K', 'L', 'M', 'N',  'O', 'P', 'Q',
-    'R', 'S', 'T', 'U',  'V', 'W', 'X',
-    'Y', 'Z', '[', '\\', ']', '^', '_',
-    '`',
+    '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07',
+    '\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F',
+    '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
+    '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F',
+    ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',
+    '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',
+    '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',
+    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',
+    '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',
+    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',
+    'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',
+    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',
+    '`',    'a',    'b',    'c',    'd',    'e',    'f',    'g',
+    'h',    'i',    'j',    'k',    'l',    'm',    'n',    'o',
+    'p',    'q',    'r',    's',    't',    'u',    'v',    'w',
+    'x',    'y',    'z',    '{',    '|',    '}',    '~',    '\x7F',
 };
 
 const GLYPH_SIZE = 32;
@@ -119,6 +115,8 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
 
     for (0..FONTS.len) |i| {
         for (CHARACTERS, 0..) |char, j| {
+            if (char <= 32 or char == 127) continue;
+
             const glyph_index = c.FT_Get_Char_Index(faces[i], char);
 
             if (c.FT_Set_Pixel_Sizes(faces[i], GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
@@ -148,7 +146,7 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
 
             const height = faces[i].*.bbox.yMax - faces[i].*.bbox.yMin;
 
-            glyph_list[i * FONTS.len + j] = Glyph{
+            glyph_list[i * CHARACTERS.len + j] = Glyph{
                 .advance_width = @intCast(faces[i].*.glyph.*.metrics.horiAdvance),
                 .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY - faces[i].*.ascender + @divTrunc(height, 4)),
                 .character_code = char,
@@ -215,17 +213,75 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     };
 }
 
-// implement hashing later
 fn getGlyph(atlas: *SDFFontAtlas, character_code: u16, font_id: u16) !Glyph {
-    for (atlas.glyph_list) |glyph| {
-        if (glyph.font_id == font_id and glyph.character_code == character_code) {
-            return glyph;
-        }
-    }
-    return error.NotFound;
+    var charcode = character_code;
+
+    if (character_code <= 32 or character_code == 128) charcode = '_';
+
+    const index = font_id * CHARACTERS.len + charcode;
+
+    if (index > TOTAL_GLYPHS) return error.OutOfRange;
+
+    return atlas.glyph_list[index];
 }
 
-pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Primatives.TextBlock) !void {
+fn renderGlyph(
+    opengl: *const OpenGL,
+    vertices: []Vertex,
+    indices: []u32,
+    vertex_count: *u32,
+    index_count: *u32,
+    glyph: *const Glyph,
+    size: u16,
+    x: f32,
+    y: f32,
+) !f32 {
+    const scale_x: f32 = @as(f32, @floatFromInt(size)) / GLYPH_SIZE;
+    const scale_y: f32 = @as(f32, @floatFromInt(size)) / GLYPH_SIZE;
+
+    const width: f32 = @as(f32, @floatFromInt(glyph.width)) * scale_x;
+    const height: f32 = @as(f32, @floatFromInt(glyph.height)) * scale_y;
+
+    const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64.0 * scale_x;
+    const baseline_offset = @as(f32, @floatFromInt(glyph.baseline_offset)) / 64.0 * scale_y;
+
+    const tex_x = @as(f32, @floatFromInt(glyph.tex_x)) / ATLAS_SIZE;
+    const tex_y = @as(f32, @floatFromInt(glyph.tex_y)) / ATLAS_SIZE;
+    const tex_width = @as(f32, @floatFromInt(glyph.width)) / ATLAS_SIZE;
+    const tex_height = @as(f32, @floatFromInt(glyph.height)) / ATLAS_SIZE;
+
+    vertices[vertex_count.*] = Vertex{
+        .texCoords = .{ tex_x, tex_y },
+        .position = opengl.translateNDC(.{ x, y - baseline_offset }),
+    };
+    vertices[vertex_count.* + 1] = Vertex{
+        .texCoords = .{ tex_x + tex_width, tex_y },
+        .position = opengl.translateNDC(.{ x + width, y - baseline_offset }),
+    };
+    vertices[vertex_count.* + 2] = Vertex{
+        .texCoords = .{ tex_x + tex_width, tex_y + tex_height },
+        .position = opengl.translateNDC(.{ x + width, y + height - baseline_offset }),
+    };
+    vertices[vertex_count.* + 3] = Vertex{
+        .texCoords = .{ tex_x, tex_y + tex_height },
+        .position = opengl.translateNDC(.{ x, y + height - baseline_offset }),
+    };
+
+    indices[index_count.*] = vertex_count.*;
+    indices[index_count.* + 1] = vertex_count.* + 1;
+    indices[index_count.* + 2] = vertex_count.* + 2;
+
+    indices[index_count.* + 3] = vertex_count.* + 2;
+    indices[index_count.* + 4] = vertex_count.* + 3;
+    indices[index_count.* + 5] = vertex_count.* + 0;
+
+    vertex_count.* += 4;
+    index_count.* += 6;
+
+    return advance_width;
+}
+
+pub fn renderText(self: *SDFFontAtlas, opengl: *const OpenGL, text_blocks: []const Primatives.TextBlock) !void {
     var vertices: [VERTICES]Vertex = undefined;
     var vertex_count: u32 = 0;
 
@@ -233,58 +289,14 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *OpenGL, text_blocks: []const Pri
     var index_count: u32 = 0;
 
     for (text_blocks) |text_block| {
-        var offset = text_block.x;
+        const first_glyph = try self.getGlyph(text_block.text[0], @intCast(text_block.font_id));
 
-        for (text_block.text, 0..) |char, i| {
+        var offset = text_block.x - @as(f32, @floatFromInt(first_glyph.lsb)) / 32;
+
+        for (text_block.text) |char| {
             if (char == 0) continue;
-
-            const glyph = try self.getGlyph(if (char == ' ') '_' else char, @intCast(text_block.font_id));
-
-            if (i == 0) offset -= @as(f32, @floatFromInt(glyph.lsb)) / 32;
-
-            const scale_x: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
-            const scale_y: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
-
-            const width: f32 = @as(f32, @floatFromInt(glyph.width)) * scale_x;
-            const height: f32 = @as(f32, @floatFromInt(glyph.height)) * scale_y;
-
-            const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64.0 * scale_x;
-            const baseline_offset = @as(f32, @floatFromInt(glyph.baseline_offset)) / 64.0 * scale_y;
-
-            const tex_x = @as(f32, @floatFromInt(glyph.tex_x)) / ATLAS_SIZE;
-            const tex_y = @as(f32, @floatFromInt(glyph.tex_y)) / ATLAS_SIZE;
-            const tex_width = @as(f32, @floatFromInt(glyph.width)) / ATLAS_SIZE;
-            const tex_height = @as(f32, @floatFromInt(glyph.height)) / ATLAS_SIZE;
-
-            vertices[vertex_count] = Vertex{
-                .texCoords = .{ tex_x, tex_y },
-                .position = opengl.translateNDC(.{ offset, text_block.y - baseline_offset }),
-            };
-            vertices[vertex_count + 1] = Vertex{
-                .texCoords = .{ tex_x + tex_width, tex_y },
-                .position = opengl.translateNDC(.{ offset + width, text_block.y - baseline_offset }),
-            };
-            vertices[vertex_count + 2] = Vertex{
-                .texCoords = .{ tex_x + tex_width, tex_y + tex_height },
-                .position = opengl.translateNDC(.{ offset + width, text_block.y + height - baseline_offset }),
-            };
-            vertices[vertex_count + 3] = Vertex{
-                .texCoords = .{ tex_x, tex_y + tex_height },
-                .position = opengl.translateNDC(.{ offset, text_block.y + height - baseline_offset }),
-            };
-
-            offset += advance_width;
-
-            indices[index_count] = vertex_count;
-            indices[index_count + 1] = vertex_count + 1;
-            indices[index_count + 2] = vertex_count + 2;
-
-            indices[index_count + 3] = vertex_count + 2;
-            indices[index_count + 4] = vertex_count + 3;
-            indices[index_count + 5] = vertex_count + 0;
-
-            vertex_count += 4;
-            index_count += 6;
+            const glyph = try self.getGlyph(char, @intCast(text_block.font_id));
+            offset += try renderGlyph(opengl, &vertices, &indices, &vertex_count, &index_count, &glyph, text_block.size, offset, text_block.y);
         }
     }
 

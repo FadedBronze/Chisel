@@ -331,7 +331,10 @@ const App = struct {
             Frame.end(&self.debug_ui);
         }
 
+        var now = std.time.milliTimestamp();
         DebugUI.end(&self.debug_ui, &self.opengl_backend) catch unreachable;
+        now = std.time.milliTimestamp() - now;
+        std.debug.print("{}\n", .{now});
     }
 
     pub fn run(self: *App) !void {

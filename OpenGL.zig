@@ -120,11 +120,11 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     self.atlas = try SDFFontAtlas.create(self);
 }
 
-pub fn destroy(_: *OpenGL) void {
+pub fn destroy(_: *const OpenGL) void {
     c.glfwTerminate();
 }
 
-pub fn add_shader(_: *OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_src: [*:0]const u8) !u32 {
+pub fn add_shader(_: *const OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_src: [*:0]const u8) !u32 {
     const vertex_shader: u32 = c.__glewCreateShader.?(c.GL_VERTEX_SHADER);
     c.__glewShaderSource.?(vertex_shader, 1, &vertex_shader_src, null);
     c.__glewCompileShader.?(vertex_shader);
@@ -174,7 +174,7 @@ pub fn add_shader(_: *OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_
     return shader;
 }
 
-pub inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
+pub inline fn translateNDC(self: *const OpenGL, vertex: zm.Vec2f) zm.Vec2f {
     return .{
         ((vertex[0] / self.screen_size.width) * 2) - 1,
         ((vertex[1] / -self.screen_size.height) * 2) + 1,
@@ -182,7 +182,7 @@ pub inline fn translateNDC(self: *OpenGL, vertex: zm.Vec2f) zm.Vec2f {
 }
 
 pub fn renderQuad(
-    self: *OpenGL,
+    self: *const OpenGL,
     vertices: anytype,
     vertex_count: *u32,
     indices: [*]u32,
