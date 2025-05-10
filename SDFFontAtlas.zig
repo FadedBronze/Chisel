@@ -113,6 +113,8 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
         face_bounds[i] = faces[i].*.bbox;
     }
 
+    c.glPixelStorei(c.GL_UNPACK_ALIGNMENT, 1);
+
     for (0..FONTS.len) |i| {
         for (CHARACTERS, 0..) |char, j| {
             const glyph_index = c.FT_Get_Char_Index(faces[i], char);
@@ -128,6 +130,10 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
             if (x_offset + bitmap.width > ATLAS_SIZE) {
                 y_offset += max_height;
                 x_offset = 0;
+            }
+
+            if (char == 'a') {
+                std.debug.print("{} {}\n", .{ bitmap.width, bitmap.rows });
             }
 
             c.glTexSubImage2D(
@@ -224,21 +230,84 @@ pub fn renderText(self: *SDFFontAtlas, _: *OpenGL, _: []const Primatives.TextBlo
     var indices: [INDICIES]u32 = undefined;
     var index_count: u32 = 0;
 
-    vertices[0] = Vertex{ .position = zm.Vec2{ -0.5, -0.5 }, .texCoords = zm.Vec2{ 0.0, 0.0 } };
-    vertices[1] = Vertex{ .position = zm.Vec2{ 0.5, -0.5 }, .texCoords = zm.Vec2{ 1.0, 0.0 } };
-    vertices[2] = Vertex{ .position = zm.Vec2{ 0.5, 0.5 }, .texCoords = zm.Vec2{ 1.0, 1.0 } };
-    vertices[3] = Vertex{ .position = zm.Vec2{ -0.5, 0.5 }, .texCoords = zm.Vec2{ 0.0, 1.0 } };
+    //vertices[0] = Vertex{ .position = zm.Vec2{ -0.5, 0.5 }, .texCoords = zm.Vec2{ 0.0, 0.0 } };
+    //vertices[1] = Vertex{ .position = zm.Vec2{ 0.5, 0.5 }, .texCoords = zm.Vec2{ 1.0, 0.0 } };
+    //vertices[2] = Vertex{ .position = zm.Vec2{ 0.5, -0.5 }, .texCoords = zm.Vec2{ 1.0, 1.0 } };
+    //vertices[3] = Vertex{ .position = zm.Vec2{ -0.5, -0.5 }, .texCoords = zm.Vec2{ 0.0, 1.0 } };
+    //vertex_count = 4;
 
-    vertex_count = 4;
+    //indices[0] = 0;
+    //indices[1] = 1;
+    //indices[2] = 2;
+    //indices[3] = 2;
+    //indices[4] = 3;
+    //indices[5] = 0;
 
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-    indices[3] = 2;
-    indices[4] = 3;
-    indices[5] = 0;
+    //index_count = 6;
 
-    index_count = 6;
+    const glyph = try self.getGlyph('a', @intCast(0));
+    //const bounds = self.face_bounds[0];
+
+    //const max_width: f32 = @floatFromInt(bounds.xMax - bounds.xMin);
+    //const max_height: f32 = @floatFromInt(bounds.yMax - bounds.yMin);
+
+    //const scale_x: f32 = @as(f32, @floatFromInt(24)) / max_width;
+    //const scale_y: f32 = @as(f32, @floatFromInt(24)) / max_height;
+
+    //const width: f32 = @as(f32, @floatFromInt(glyph.width)) * scale_x;
+    //const height: f32 = @as(f32, @floatFromInt(glyph.height)) * scale_y;
+
+    ////const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64.0 * scale_x;
+    //const baseline_offset = @as(f32, @floatFromInt(glyph.baseline_offset)) / 64.0 * scale_y;
+
+    const tex_x = @as(f32, @floatFromInt(glyph.tex_x)) / ATLAS_SIZE;
+    const tex_y = @as(f32, @floatFromInt(glyph.tex_y)) / ATLAS_SIZE;
+    const tex_width = @as(f32, @floatFromInt(glyph.width)) / ATLAS_SIZE;
+    const tex_height = @as(f32, @floatFromInt(glyph.height)) / ATLAS_SIZE;
+
+    vertices[vertex_count] = Vertex{
+        .texCoords = .{ tex_x, tex_y },
+        .position = zm.Vec2{ -0.5, 0.5 },
+        //.position = opengl.translateNDC(.{ 0, baseline_offset }),
+    };
+    vertices[vertex_count + 1] = Vertex{
+        .texCoords = .{ tex_x + tex_width, tex_y },
+        .position = zm.Vec2{ 0.5, 0.5 },
+        //.position = opengl.translateNDC(.{ 0 + width, baseline_offset }),
+    };
+    vertices[vertex_count + 2] = Vertex{
+        .texCoords = .{ tex_x + tex_width, tex_y + tex_height },
+        .position = zm.Vec2{ 0.5, -0.5 },
+        //.position = opengl.translateNDC(.{ 0 + width, height + baseline_offset }),
+    };
+    vertices[vertex_count + 3] = Vertex{
+        .texCoords = .{ tex_x, tex_y + tex_height },
+        .position = zm.Vec2{ -0.5, -0.5 },
+        //.position = opengl.translateNDC(.{ 0, height + baseline_offset }),
+    };
+
+    indices[index_count] = vertex_count;
+    indices[index_count + 1] = vertex_count + 1;
+    indices[index_count + 2] = vertex_count + 2;
+
+    indices[index_count + 3] = vertex_count + 2;
+    indices[index_count + 4] = vertex_count + 3;
+    indices[index_count + 5] = vertex_count;
+
+    vertex_count += 4;
+    index_count += 6;
+
+    std.debug.print("\n", .{});
+
+    for (vertices[0..vertex_count]) |vertex| {
+        std.debug.print("{}\n", .{vertex});
+
+        std.debug.assert(vertex.texCoords[0] >= 0 and vertex.texCoords[0] <= 1);
+        std.debug.assert(vertex.texCoords[1] >= 0 and vertex.texCoords[1] <= 1);
+
+        std.debug.assert(vertex.position[0] >= -1 and vertex.position[0] <= 1);
+        std.debug.assert(vertex.position[1] >= -1 and vertex.position[1] <= 1);
+    }
 
     //for (text_blocks) |text_block| {
     //    var offset = text_block.x;
@@ -294,16 +363,6 @@ pub fn renderText(self: *SDFFontAtlas, _: *OpenGL, _: []const Primatives.TextBlo
     //        vertex_count += 4;
     //        index_count += 6;
     //    }
-    //}
-
-    //for (vertices[0..vertex_count]) |vertex| {
-    //    std.debug.print("{}\n", .{vertex});
-
-    //    std.debug.assert(vertex.texCoords[0] >= 0 and vertex.texCoords[0] <= 1);
-    //    std.debug.assert(vertex.texCoords[1] >= 0 and vertex.texCoords[1] <= 1);
-
-    //    std.debug.assert(vertex.position[0] >= -1 and vertex.position[0] <= 1);
-    //    std.debug.assert(vertex.position[1] >= -1 and vertex.position[1] <= 1);
     //}
 
     // shader
