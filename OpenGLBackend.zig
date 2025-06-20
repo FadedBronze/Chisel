@@ -10,6 +10,8 @@ const Primatives = @import("Primatives.zig");
 const utils = @import("utils.zig");
 const Bounds = utils.Bounds;
 
+const std = @import("std");
+
 opengl: *OpenGL,
 
 pub fn create(opengl: *OpenGL, width: f32, height: f32) !OpenGLBackend {

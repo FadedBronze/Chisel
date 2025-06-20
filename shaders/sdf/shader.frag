@@ -9,7 +9,7 @@ void main()
 {
     float smoothness = 0.12;
 
-    float sdf = texture(tex, texCoord).r;
+    float sdf = texture(tex, texCoord).r + 0.05;
     float color = smoothstep(0.5-smoothness, 0.5+smoothness, sdf);
     FragColor = vec4(color, color, color, color);
 

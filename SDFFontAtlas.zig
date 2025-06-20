@@ -35,13 +35,11 @@ const Glyph = packed struct {
     advance_width: u16,
     lsb: i16,
     baseline_offset: i16,
-    character_code: u16,
-    font_id: u16,
     width: u16,
     height: u16,
     tex_x: u16,
     tex_y: u16,
-    _padding: u48,
+    _padding: u16,
 };
 
 const VERTICES = 2048;
@@ -71,7 +69,6 @@ const TOTAL_GLYPHS = CHARACTERS.len * FONTS.len;
 const ATLAS_SIZE = (@as(comptime_int, @intFromFloat(@sqrt(@as(f32, @floatFromInt(TOTAL_GLYPHS)) * 2))) + 1) * GLYPH_SIZE;
 
 glyph_list: [TOTAL_GLYPHS]Glyph,
-face_bounds: [FONTS.len]c.FT_BBox,
 shader: u32,
 atlas_texture: u32,
 vao: u32,
@@ -79,9 +76,7 @@ vbo: u32,
 ebo: u32,
 
 // simple shelf packing
-pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GLYPHS]Glyph {
-    std.debug.assert(face_bounds.len == FONTS.len);
-
+pub fn initFontTexture(atlas_texture: *u32) ![TOTAL_GLYPHS]Glyph {
     var max_height: u16 = 0;
     var x_offset: u16 = 0;
     var y_offset: u16 = 0;
@@ -108,7 +103,6 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
 
     for (FONTS, 0..) |path, i| {
         if (c.FT_New_Face(free_type, @ptrCast(path), 0, &faces[i]) != c.FT_Err_Ok) return error.FontFaceCreateFailed;
-        face_bounds[i] = faces[i].*.bbox;
     }
 
     c.glPixelStorei(c.GL_UNPACK_ALIGNMENT, 1);
@@ -149,8 +143,6 @@ pub fn initFontTexture(atlas_texture: *u32, face_bounds: []c.FT_BBox) ![TOTAL_GL
             glyph_list[i * CHARACTERS.len + j] = Glyph{
                 .advance_width = @intCast(faces[i].*.glyph.*.metrics.horiAdvance),
                 .baseline_offset = @intCast(faces[i].*.glyph.*.metrics.horiBearingY - faces[i].*.ascender + @divTrunc(height, 4)),
-                .character_code = char,
-                .font_id = @intCast(i),
                 .tex_x = x_offset,
                 .tex_y = y_offset,
                 .height = @intCast(bitmap.rows),
@@ -196,8 +188,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
 
     // font
     var atlas_texture: u32 = undefined;
-    var bboxs: [FONTS.len]c.FT_BBox = undefined;
-    const glyph_list = try initFontTexture(&atlas_texture, &bboxs);
+    const glyph_list = try initFontTexture(&atlas_texture);
 
     // unbind
     c.__glewBindVertexArray.?(0);
@@ -208,7 +199,6 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
         .vbo = vbo,
         .ebo = ebo,
         .atlas_texture = atlas_texture,
-        .face_bounds = bboxs,
         .glyph_list = glyph_list,
     };
 }
@@ -232,17 +222,14 @@ fn renderGlyph(
     vertex_count: *u32,
     index_count: *u32,
     glyph: *const Glyph,
-    size: u16,
+    scale_x: f32,
+    scale_y: f32,
     x: f32,
     y: f32,
-) !f32 {
-    const scale_x: f32 = @as(f32, @floatFromInt(size)) / GLYPH_SIZE;
-    const scale_y: f32 = @as(f32, @floatFromInt(size)) / GLYPH_SIZE;
-
+) !void {
     const width: f32 = @as(f32, @floatFromInt(glyph.width)) * scale_x;
     const height: f32 = @as(f32, @floatFromInt(glyph.height)) * scale_y;
 
-    const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64.0 * scale_x;
     const baseline_offset = @as(f32, @floatFromInt(glyph.baseline_offset)) / 64.0 * scale_y;
 
     const tex_x = @as(f32, @floatFromInt(glyph.tex_x)) / ATLAS_SIZE;
@@ -277,8 +264,6 @@ fn renderGlyph(
 
     vertex_count.* += 4;
     index_count.* += 6;
-
-    return advance_width;
 }
 
 pub fn renderText(self: *SDFFontAtlas, opengl: *const OpenGL, text_blocks: []const Primatives.TextBlock) !void {
@@ -290,13 +275,27 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *const OpenGL, text_blocks: []con
 
     for (text_blocks) |text_block| {
         const first_glyph = try self.getGlyph(text_block.text[0], @intCast(text_block.font_id));
+        const scale_x: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
+        const scale_y: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
 
-        var offset = text_block.x - @as(f32, @floatFromInt(first_glyph.lsb)) / 32;
+        var last_lsb = @as(f32, @floatFromInt(first_glyph.lsb)) / 32 * scale_x;
+        var offset = text_block.x - last_lsb;
+        var y_offset = text_block.y;
 
         for (text_block.text) |char| {
             if (char == 0) continue;
             const glyph = try self.getGlyph(char, @intCast(text_block.font_id));
-            offset += try renderGlyph(opengl, &vertices, &indices, &vertex_count, &index_count, &glyph, text_block.size, offset, text_block.y);
+
+            const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64 * scale_x;
+
+            if (offset + advance_width - text_block.x + last_lsb > text_block.width) {
+                y_offset += GLYPH_SIZE;
+                last_lsb = @as(f32, @floatFromInt(glyph.lsb)) / 32.0 * scale_x;
+                offset = text_block.x - last_lsb;
+            }
+
+            try renderGlyph(opengl, &vertices, &indices, &vertex_count, &index_count, &glyph, scale_x, scale_y, offset, y_offset);
+            offset += advance_width;
         }
     }
 
