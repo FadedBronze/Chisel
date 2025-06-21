@@ -1,5 +1,5 @@
 const c = @cImport({
-    @cInclude("GL/glew.h");
+    @cInclude("glad/glad.h");
     @cInclude("GLFW/glfw3.h");
 });
 
@@ -27,7 +27,7 @@ pub fn getEvents(backend: *OpenGLBackend) InputEventInfo {
 
     return InputEventInfo{
         .flags = .{
-            .quit = c.glfwWindowShouldClose(backend.opengl.window) == c.GLFW_TRUE,
+            .quit = c.glfwWindowShouldClose(@ptrCast(backend.opengl.window)) == c.GLFW_TRUE,
             .mouse_down = backend.opengl.mouse_down,
             ._padding = 0,
         },
@@ -59,7 +59,7 @@ pub fn render(backend: *OpenGLBackend, primatives: *const Primatives) !void {
 
     try backend.opengl.atlas.renderText(backend.opengl, primatives.text[primatives.defer_text_offset..Primatives.MAX_TEXT]);
 
-    c.glfwSwapBuffers(backend.opengl.window);
+    c.glfwSwapBuffers(@ptrCast(backend.opengl.window));
 }
 
 pub fn updateSize(self: *OpenGLBackend, width: f32, height: f32) void {

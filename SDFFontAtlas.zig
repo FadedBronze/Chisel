@@ -1,7 +1,7 @@
 const c = @cImport({
-    @cInclude("freetype2/freetype/freetype.h");
+    @cInclude("freetype/freetype.h");
     @cInclude("stb_image_write.h");
-    @cInclude("GL/glew.h");
+    @cInclude("glad/glad.h");
     @cInclude("GLFW/glfw3.h");
 });
 const utils = @import("utils.zig");
@@ -83,7 +83,7 @@ pub fn initFontTexture(atlas_texture: *u32) ![TOTAL_GLYPHS]Glyph {
     var glyph_list: [TOTAL_GLYPHS]Glyph = undefined;
 
     // texture
-    c.__glewActiveTexture.?(c.GL_TEXTURE0);
+    c.glad_glActiveTexture.?(c.GL_TEXTURE0);
 
     c.glGenTextures(1, atlas_texture);
     c.glBindTexture(c.GL_TEXTURE_2D, atlas_texture.*);
@@ -164,24 +164,24 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     const fragment_shader = @embedFile("shaders/sdf/shader.frag");
 
     var vao: u32 = undefined;
-    c.__glewGenVertexArrays.?(1, &vao);
-    c.__glewBindVertexArray.?(vao);
+    c.glad_glGenVertexArrays.?(1, &vao);
+    c.glad_glBindVertexArray.?(vao);
 
     var ebo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &ebo);
-    c.__glewBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
-    c.__glewBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * INDICIES, null, c.GL_DYNAMIC_DRAW);
+    c.glad_glGenBuffers.?(1, &ebo);
+    c.glad_glBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
+    c.glad_glBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * INDICIES, null, c.GL_DYNAMIC_DRAW);
 
     var vbo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &vbo);
-    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
-    c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Vertex) * VERTICES, null, c.GL_DYNAMIC_DRAW);
+    c.glad_glGenBuffers.?(1, &vbo);
+    c.glad_glBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
+    c.glad_glBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Vertex) * VERTICES, null, c.GL_DYNAMIC_DRAW);
 
-    c.__glewVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), null);
-    c.__glewVertexAttribPointer.?(1, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(@offsetOf(Vertex, "texCoords")));
+    c.glad_glVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), null);
+    c.glad_glVertexAttribPointer.?(1, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(@offsetOf(Vertex, "texCoords")));
 
-    c.__glewEnableVertexAttribArray.?(0);
-    c.__glewEnableVertexAttribArray.?(1);
+    c.glad_glEnableVertexAttribArray.?(0);
+    c.glad_glEnableVertexAttribArray.?(1);
 
     // shader
     const shader = try opengl.add_shader(vertex_shader, fragment_shader);
@@ -191,7 +191,7 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
     const glyph_list = try initFontTexture(&atlas_texture);
 
     // unbind
-    c.__glewBindVertexArray.?(0);
+    c.glad_glBindVertexArray.?(0);
 
     return SDFFontAtlas{
         .shader = shader,
@@ -300,25 +300,25 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *const OpenGL, text_blocks: []con
     }
 
     // shader
-    c.__glewUseProgram.?(self.shader);
+    c.glad_glUseProgram.?(self.shader);
 
     // texture
-    const location: c.GLint = c.__glewGetUniformLocation.?(self.shader, "tex");
-    c.__glewUniform1i.?(location, 0);
+    const location: c.GLint = c.glad_glGetUniformLocation.?(self.shader, "tex");
+    c.glad_glUniform1i.?(location, 0);
     c.glBindTexture(c.GL_TEXTURE_2D, self.atlas_texture);
 
     // vao
-    c.__glewBindVertexArray.?(self.vao);
-    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
-    c.__glewBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, self.ebo);
+    c.glad_glBindVertexArray.?(self.vao);
+    c.glad_glBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
+    c.glad_glBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, self.ebo);
 
-    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
-    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
+    c.glad_glBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
+    c.glad_glBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
 
     // draw
     c.glDrawElements(c.GL_TRIANGLES, @intCast(index_count), c.GL_UNSIGNED_INT, null);
 
     // unbind
-    c.__glewUseProgram.?(0);
-    c.__glewBindVertexArray.?(0);
+    c.glad_glUseProgram.?(0);
+    c.glad_glBindVertexArray.?(0);
 }

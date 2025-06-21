@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const c = @cImport({
-    @cInclude("GL/glew.h");
+    @cInclude("glad/glad.h");
     @cInclude("GLFW/glfw3.h");
 });
 
@@ -35,26 +35,26 @@ pub fn create(opengl: *OpenGL) !Renderer {
     const shader: u32 = try opengl.add_shader(Renderer.VERTEX_SHADER_SOURCE, Renderer.FRAGMENT_SHADER_SOURCE);
 
     var vao: u32 = undefined;
-    c.__glewGenVertexArrays.?(1, &vao);
-    c.__glewBindVertexArray.?(vao);
+    c.glad_glGenVertexArrays.?(1, &vao);
+    c.glad_glBindVertexArray.?(vao);
 
     var ebo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &ebo);
-    c.__glewBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
-    c.__glewBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * INDICIES, null, c.GL_DYNAMIC_DRAW);
+    c.glad_glGenBuffers.?(1, &ebo);
+    c.glad_glBindBuffer.?(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
+    c.glad_glBufferData.?(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(u32) * INDICIES, null, c.GL_DYNAMIC_DRAW);
 
     var vbo: u32 = undefined;
-    c.__glewGenBuffers.?(1, &vbo);
-    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
-    c.__glewBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Renderer.Vertex) * VERTICES, null, c.GL_DYNAMIC_DRAW);
+    c.glad_glGenBuffers.?(1, &vbo);
+    c.glad_glBindBuffer.?(c.GL_ARRAY_BUFFER, vbo);
+    c.glad_glBufferData.?(c.GL_ARRAY_BUFFER, @sizeOf(Renderer.Vertex) * VERTICES, null, c.GL_DYNAMIC_DRAW);
 
-    c.__glewVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Renderer.Vertex), null);
-    c.__glewVertexAttribPointer.?(1, 4, c.GL_UNSIGNED_BYTE, c.GL_TRUE, @sizeOf(Renderer.Vertex), @ptrFromInt(@offsetOf(Renderer.Vertex, "color")));
+    c.glad_glVertexAttribPointer.?(0, 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Renderer.Vertex), null);
+    c.glad_glVertexAttribPointer.?(1, 4, c.GL_UNSIGNED_BYTE, c.GL_TRUE, @sizeOf(Renderer.Vertex), @ptrFromInt(@offsetOf(Renderer.Vertex, "color")));
 
-    c.__glewEnableVertexAttribArray.?(0);
-    c.__glewEnableVertexAttribArray.?(1);
+    c.glad_glEnableVertexAttribArray.?(0);
+    c.glad_glEnableVertexAttribArray.?(1);
 
-    c.__glewBindVertexArray.?(0);
+    c.glad_glBindVertexArray.?(0);
 
     return Renderer{
         .vao = vao,
@@ -92,20 +92,20 @@ pub fn renderRectangles(self: *Renderer, opengl: *OpenGL, rectangles: []const Pr
     }
 
     // vao
-    c.__glewBindVertexArray.?(self.vao);
-    c.__glewBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
-    c.__glewBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
-    c.__glewBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
+    c.glad_glBindVertexArray.?(self.vao);
+    c.glad_glBindBuffer.?(c.GL_ARRAY_BUFFER, self.vbo);
+    c.glad_glBufferSubData.?(c.GL_ARRAY_BUFFER, 0, @sizeOf(Vertex) * vertex_count, &vertices);
+    c.glad_glBufferSubData.?(c.GL_ELEMENT_ARRAY_BUFFER, 0, @sizeOf(u32) * index_count, &indices);
 
     // shader
-    c.__glewUseProgram.?(self.shader);
+    c.glad_glUseProgram.?(self.shader);
 
     // draw
     c.glDrawElements(c.GL_TRIANGLES, @intCast(index_count), c.GL_UNSIGNED_INT, null);
 
     // unbind
-    c.__glewUseProgram.?(0);
-    c.__glewBindVertexArray.?(0);
+    c.glad_glUseProgram.?(0);
+    c.glad_glBindVertexArray.?(0);
 
     opengl.scroll_offset = .{ 0, 0 };
 }

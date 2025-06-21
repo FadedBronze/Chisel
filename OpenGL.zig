@@ -1,7 +1,8 @@
 const std = @import("std");
 
 const c = @cImport({
-    @cInclude("GL/glew.h");
+    @cInclude("glad/glad.h");
+    @cInclude("GL/gl.h");
     @cInclude("GLFW/glfw3.h");
 });
 
@@ -80,6 +81,12 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     }
 
     c.glfwMakeContextCurrent(window);
+    
+    const version = c.gladLoadGL();
+
+    if (version == 0) {
+        return error.GLADInitFailed;
+    }
 
     c.glViewport(0, 0, width_int, height_int);
 
@@ -92,19 +99,12 @@ pub fn init(self: *OpenGL, width: f32, height: f32) !void {
     _ = c.glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
 
     _ = c.glfwSetScrollCallback(window, scrollCallback);
-
-    const err: c.GLenum = c.glewInit();
-
-    if (c.GLEW_OK != err) {
-        std.debug.print("{s}", .{c.glewGetErrorString(err)});
-        return error.GLEWInitFailed;
-    }
-
+    
     c.glEnable(c.GL_BLEND);
     c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA);
 
     c.glEnable(c.GL_DEBUG_OUTPUT);
-    c.__glewDebugMessageCallback.?(debugCallback, null);
+    c.glad_glDebugMessageCallback.?(debugCallback, null);
 
     self.* = OpenGL{
         .screen_size = Extents{ .height = height, .width = width },
@@ -125,51 +125,51 @@ pub fn destroy(_: *const OpenGL) void {
 }
 
 pub fn add_shader(_: *const OpenGL, vertex_shader_src: [*:0]const u8, fragment_shader_src: [*:0]const u8) !u32 {
-    const vertex_shader: u32 = c.__glewCreateShader.?(c.GL_VERTEX_SHADER);
-    c.__glewShaderSource.?(vertex_shader, 1, &vertex_shader_src, null);
-    c.__glewCompileShader.?(vertex_shader);
+    const vertex_shader: u32 = c.glad_glCreateShader.?(c.GL_VERTEX_SHADER);
+    c.glad_glShaderSource.?(vertex_shader, 1, &vertex_shader_src, null);
+    c.glad_glCompileShader.?(vertex_shader);
 
-    const fragment_shader: u32 = c.__glewCreateShader.?(c.GL_FRAGMENT_SHADER);
-    c.__glewShaderSource.?(fragment_shader, 1, &fragment_shader_src, null);
-    c.__glewCompileShader.?(fragment_shader);
+    const fragment_shader: u32 = c.glad_glCreateShader.?(c.GL_FRAGMENT_SHADER);
+    c.glad_glShaderSource.?(fragment_shader, 1, &fragment_shader_src, null);
+    c.glad_glCompileShader.?(fragment_shader);
 
     var success: i32 = undefined;
     var infoLog: [512:0]u8 = undefined;
-    c.__glewGetShaderiv.?(fragment_shader, c.GL_COMPILE_STATUS, &success);
+    c.glad_glGetShaderiv.?(fragment_shader, c.GL_COMPILE_STATUS, &success);
 
     if (success == c.GL_FALSE) {
-        c.__glewGetShaderInfoLog.?(fragment_shader, 512, null, &infoLog);
+        c.glad_glGetShaderInfoLog.?(fragment_shader, 512, null, &infoLog);
         std.debug.print("Fragment Shader Error:\n{s}", .{infoLog});
         return error.ShaderCompilationFailed;
     }
 
-    c.__glewGetShaderiv.?(vertex_shader, c.GL_COMPILE_STATUS, &success);
+    c.glad_glGetShaderiv.?(vertex_shader, c.GL_COMPILE_STATUS, &success);
 
     if (success == c.GL_FALSE) {
-        c.__glewGetShaderInfoLog.?(vertex_shader, 512, null, &infoLog);
+        c.glad_glGetShaderInfoLog.?(vertex_shader, 512, null, &infoLog);
         std.debug.print("Vertex Shader Error:\n{s}", .{infoLog});
         return error.ShaderCompilationFailed;
     }
 
-    const shader: u32 = c.__glewCreateProgram.?();
-    c.__glewAttachShader.?(shader, vertex_shader);
-    c.__glewAttachShader.?(shader, fragment_shader);
-    c.__glewLinkProgram.?(shader);
+    const shader: u32 = c.glad_glCreateProgram.?();
+    c.glad_glAttachShader.?(shader, vertex_shader);
+    c.glad_glAttachShader.?(shader, fragment_shader);
+    c.glad_glLinkProgram.?(shader);
 
-    c.__glewUseProgram.?(shader);
+    c.glad_glUseProgram.?(shader);
 
-    c.__glewDeleteShader.?(vertex_shader);
-    c.__glewDeleteShader.?(fragment_shader);
+    c.glad_glDeleteShader.?(vertex_shader);
+    c.glad_glDeleteShader.?(fragment_shader);
 
-    c.__glewGetProgramiv.?(shader, c.GL_LINK_STATUS, &success);
+    c.glad_glGetProgramiv.?(shader, c.GL_LINK_STATUS, &success);
 
     if (success == c.GL_FALSE) {
-        c.__glewGetProgramInfoLog.?(shader, 512, null, &infoLog);
+        c.glad_glGetProgramInfoLog.?(shader, 512, null, &infoLog);
         std.debug.print("Shader Program Linking Error:\n{s}", .{infoLog});
         return error.ShaderLinkingFailed;
     }
 
-    c.__glewUseProgram.?(0);
+    c.glad_glUseProgram.?(0);
 
     return shader;
 }

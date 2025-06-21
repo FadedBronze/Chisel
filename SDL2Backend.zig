@@ -1,6 +1,6 @@
 const c = @cImport({
-    @cInclude("SDL2/SDL.h");
-    @cInclude("SDL2/SDL_ttf.h");
+    @cInclude("SDL.h");
+    @cInclude("SDL_ttf.h");
 });
 const std = @import("std");
 
