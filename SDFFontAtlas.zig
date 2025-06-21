@@ -109,12 +109,28 @@ pub fn initFontTexture(atlas_texture: *u32) ![TOTAL_GLYPHS]Glyph {
 
     for (0..FONTS.len) |i| {
         for (CHARACTERS, 0..) |char, j| {
-            if (char <= 32 or char == 127) continue;
+            if (char < 32 or char == 127) continue;
 
             const glyph_index = c.FT_Get_Char_Index(faces[i], char);
 
             if (c.FT_Set_Pixel_Sizes(faces[i], GLYPH_SIZE, GLYPH_SIZE) != c.FT_Err_Ok) return error.SetPixelSizeFailed;
             if (c.FT_Load_Glyph(faces[i], glyph_index, c.FT_LOAD_NO_HINTING) != c.FT_Err_Ok) return error.LoadFailed;
+
+            if (char == 32) {
+                glyph_list[i * CHARACTERS.len + j] = Glyph{
+                    .advance_width = @intCast(faces[i].*.glyph.*.metrics.horiAdvance),
+                    .baseline_offset = 0,
+                    .tex_x = 0,
+                    .tex_y = 0,
+                    .height = 0,
+                    .width = 0,
+                    .lsb = 0,
+                    ._padding = 0,
+                };
+
+                continue;
+            }
+
             if (c.FT_Render_Glyph(faces[i].*.glyph, c.FT_RENDER_MODE_SDF) != c.FT_Err_Ok) return error.RenderFailed;
 
             const bitmap = faces[i].*.glyph.*.bitmap;
@@ -204,15 +220,19 @@ pub fn create(opengl: *OpenGL) !SDFFontAtlas {
 }
 
 fn getGlyph(atlas: *SDFFontAtlas, character_code: u16, font_id: u16) !Glyph {
-    var charcode = character_code;
+    if (character_code == 32) return error.SpaceKey;
 
-    if (character_code <= 32 or character_code == 128) charcode = '_';
+    if (character_code < 32 or character_code == 128) return error.OtherKey;
 
-    const index = font_id * CHARACTERS.len + charcode;
-
-    if (index > TOTAL_GLYPHS) return error.OutOfRange;
+    const index = font_id * CHARACTERS.len + character_code;
 
     return atlas.glyph_list[index];
+}
+
+fn getSpaceAdvance(atlas: *SDFFontAtlas, font_id: u16) u16 {
+    const index = font_id * CHARACTERS.len + 32;
+
+    return atlas.glyph_list[index].advance_width;
 }
 
 fn renderGlyph(
@@ -262,7 +282,7 @@ fn renderGlyph(
     indices[index_count.* + 4] = vertex_count.* + 3;
     indices[index_count.* + 5] = vertex_count.* + 0;
 
-    vertex_count.* += 4;
+    vertex_count.* += 6;
     index_count.* += 6;
 }
 
@@ -273,18 +293,66 @@ pub fn renderText(self: *SDFFontAtlas, opengl: *const OpenGL, text_blocks: []con
     var indices: [INDICIES]u32 = undefined;
     var index_count: u32 = 0;
 
-    for (text_blocks) |text_block| {
-        const first_glyph = try self.getGlyph(text_block.text[0], @intCast(text_block.font_id));
+    next_text_block: for (text_blocks) |text_block| {
+        var offset = text_block.x;
+
+        const first_glyph = found_nonspace: { 
+            for (text_block.text) |char| {
+                const first_lsb_glyph = self.getGlyph(char, @intCast(text_block.font_id)) catch |err| switch (err) {
+                    error.SpaceKey => { continue; },
+                    error.OtherKey => { continue; // TODO },
+                }}; 
+
+                break :found_nonspace first_lsb_glyph;
+            }
+
+            // if all whitespace nothing to render
+            continue;
+        };
+
         const scale_x: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
         const scale_y: f32 = @as(f32, @floatFromInt(text_block.size)) / GLYPH_SIZE;
 
         var last_lsb = @as(f32, @floatFromInt(first_glyph.lsb)) / 32 * scale_x;
-        var offset = text_block.x - last_lsb;
+
+        offset -= last_lsb;
+
         var y_offset = text_block.y;
 
-        for (text_block.text) |char| {
+        for (text_block.text, 0..) |char, i| {
             if (char == 0) continue;
-            const glyph = try self.getGlyph(char, @intCast(text_block.font_id));
+
+            const glyph = self.getGlyph(char, @intCast(text_block.font_id)) catch |err| switch (err) {
+                error.SpaceKey => {
+                    const advance = @as(f32, @floatFromInt(self.getSpaceAdvance(@intCast(text_block.font_id)))) / 64 * scale_x;
+
+                    if (offset + advance - text_block.x + last_lsb > text_block.width) {
+                        y_offset += GLYPH_SIZE;
+
+                        const next_lsb_glyph = found_nonspace: { 
+                            for (text_block.text[i..]) |lsb_char| {
+                                break :found_nonspace self.getGlyph(lsb_char, @intCast(text_block.font_id)) catch |lsb_err| switch (lsb_err) {
+                                    error.SpaceKey => { continue; },
+                                    error.OtherKey => { continue; // TODO },
+                                }}; 
+                            }
+                            
+                            continue :next_text_block;
+                        };
+
+                        last_lsb = @as(f32, @floatFromInt(next_lsb_glyph.lsb)) / 32 * scale_x;
+
+                        offset = text_block.x - last_lsb;
+                    }
+
+                    offset += advance;
+                        
+                    continue;
+                },
+                error.OtherKey => {
+                    continue;
+                },
+            };
 
             const advance_width = @as(f32, @floatFromInt(glyph.advance_width)) / 64 * scale_x;
 
