@@ -9,5 +9,21 @@
             .url = "git+https://github.com/griush/zm#319a44a9b0859214b9240a5c4ae0d8ae9ac16672",
             .hash = "zm-0.3.0-AAAAAL3MAAA2du9TcSd0z2lFBF5_Qv-0zd7F566Z7B3K",
         },
+        .SDL_ttf = .{
+            .url = "git+https://github.com/allyourcodebase/SDL_ttf?ref=v2#5b11c90f3449b7d521aa0e74ff0532dacf4249d7",
+            .hash = "SDL_ttf-2.24.0-PNW5xPMOAABvGKR8M05A2LnV6C4qtacG_NmocltNGHz1",
+        },
+        .SDL = .{
+            .url = "git+https://github.com/allyourcodebase/SDL#005c64130effb6019c42769d3a277180bdbeb0b2",
+            .hash = "SDL-2.32.6-JToi32yUEgFuZPcB2O6IbBHHsP2Ul8QuRYh488w2VnMy",
+        },
+        .glfw = .{
+            .url = "git+https://github.com/allyourcodebase/glfw#98607df9bce062c7fd837d58fafa06dae22edb04",
+            .hash = "glfw-0.0.0-R5AeUm0HGgA_Rlrr9HR91ejkGd-K_JyCjkXz_U3b-jp9",
+        },
+        .freetype = .{
+            .url = "git+https://github.com/allyourcodebase/freetype#d0a748192f26bd20f9f339d0d7156b84e90eb4dc",
+            .hash = "freetype-2.13.2-AAAAAByJAAD7KQxAcdDYidJ3YigvRztfnLmn4rQpvLms",
+        },
     },
 }
